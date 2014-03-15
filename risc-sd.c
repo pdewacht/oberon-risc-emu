@@ -142,8 +142,10 @@ static void read_sector(FILE *f, uint32_t buf[static 128]) {
   uint8_t bytes[512] = { 0 };
   fread(bytes, 512, 1, f);  
   for (int i = 0; i < 128; i++) {    
-    buf[i] = bytes[i*4+0] | (bytes[i*4+1] << 8) |
-      (bytes[i*4+2] << 16) | (bytes[i*4+3] << 24);
+    buf[i] = (uint32_t)bytes[i*4+0]
+      | ((uint32_t)bytes[i*4+1] << 8)
+      | ((uint32_t)bytes[i*4+2] << 16)
+      | ((uint32_t)bytes[i*4+3] << 24);
   }
 }
 

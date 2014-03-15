@@ -10,7 +10,7 @@ RISC_SOURCE = \
 	risc-sd.c risc-sd.h
 
 risc: $(RISC_SOURCE) 
-	gcc -o $@ $(filter %.c, $^) $(RISC_CFLAGS)
+	$(CC) -o $@ $(filter %.c, $^) $(RISC_CFLAGS)
 
 clean:
 	rm -f risc

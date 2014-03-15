@@ -304,8 +304,8 @@ static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) 
   if (address < RegStart) {
     uint32_t w = risc_load_word(risc, address);
     uint32_t shift = (address & 3) * 8;
-    w &= ~(0xFF << shift);
-    w |= value << shift;
+    w &= ~(0xFFu << shift);
+    w |= (uint32_t)value << shift;
     risc_store_word(risc, address, w);
   }
 }
