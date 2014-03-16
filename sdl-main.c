@@ -13,10 +13,10 @@
 #define CPU_HZ 25000000
 #define FPS 60
 
-static uint32_t BLACK = 0xfdf6e3, WHITE = 0x657b83;
+static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 //static uint32_t BLACK = 0x000000, WHITE = 0xFFFFFF;
-//static uint32_t BLACK = 0xFFFF00, WHITE = 0x0000FF;
-//static uint32_t BLACK = 0x00FF00, WHITE = 0x000000;
+//static uint32_t BLACK = 0x0000FF, WHITE = 0xFFFF00;
+//static uint32_t BLACK = 0x000000, WHITE = 0x00FF00;
 
 int64_t microseconds(void);
 void render_to_texture(uint32_t *framebuffer, SDL_Texture *texture);
@@ -123,7 +123,7 @@ void render_to_texture(uint32_t *framebuffer, SDL_Texture *texture) {
     first = false;
     memset(cache, 0, sizeof(cache));
     for (size_t i = 0; i < sizeof(buffer)/sizeof(buffer[0]); ++i) {
-      buffer[i] = WHITE;
+      buffer[i] = BLACK;
     }
     SDL_UpdateTexture(texture, NULL, buffer, SCREEN_WIDTH * 4);
   }
@@ -147,7 +147,7 @@ void render_to_texture(uint32_t *framebuffer, SDL_Texture *texture) {
 
         uint32_t *buf_ptr = &buffer[line * SCREEN_WIDTH + col * 32];
         for (int b = 0; b < 32; b++) {
-          *buf_ptr++ = (pixels & 1) ? BLACK : WHITE;
+          *buf_ptr++ = (pixels & 1) ? WHITE : BLACK;
           pixels >>= 1;
         }
       }
