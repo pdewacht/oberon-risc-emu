@@ -1,6 +1,6 @@
 // Translate SDL scancodes to PS/2 codeset 2 scancodes.
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include "sdl-ps2.h"
 
 struct k_info {

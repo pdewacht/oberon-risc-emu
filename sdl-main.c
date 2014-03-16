@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include "risc.h"
 #include "sdl-ps2.h"
 
