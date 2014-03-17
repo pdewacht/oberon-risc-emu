@@ -18,7 +18,6 @@ static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 //static uint32_t BLACK = 0x0000FF, WHITE = 0xFFFF00;
 //static uint32_t BLACK = 0x000000, WHITE = 0x00FF00;
 
-int64_t microseconds(void);
 void render_to_texture(uint32_t *framebuffer, SDL_Texture *texture);
 
 int main (int argc, char *argv[]) {
@@ -62,10 +61,9 @@ int main (int argc, char *argv[]) {
   SDL_ShowCursor(false);
 
   bool done = false;
-  int64_t emulation_start = microseconds();
   SDL_Event event;
   while (!done) {
-    int64_t frame_start = microseconds();
+    uint32_t frame_start = SDL_GetTicks();
 
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
@@ -91,27 +89,21 @@ int main (int argc, char *argv[]) {
       }
     }
 
-    risc_set_time(risc, (frame_start - emulation_start) / 1000);
+    risc_set_time(risc, frame_start);
     risc_run(risc, CPU_HZ / FPS);
 
     render_to_texture(risc_get_framebuffer_ptr(risc), texture);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 
-    int64_t frame_end = microseconds();
-    int delay = (frame_start + 1000000/FPS - frame_end) / 1000;
+    uint32_t frame_end = SDL_GetTicks();
+    int delay = frame_start + 1000/FPS - frame_end;
     if (delay > 0) {
       SDL_Delay(delay);
     }
   }
 
   return 0;
-}
-
-int64_t microseconds(void) {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
 void render_to_texture(uint32_t *framebuffer, SDL_Texture *texture) {
