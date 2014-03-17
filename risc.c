@@ -47,8 +47,8 @@ static uint32_t risc_load_word(struct RISC *risc, uint32_t address);
 static uint8_t risc_load_byte(struct RISC *risc, uint32_t address);
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value);
 static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value);
-static uint32_t risc_load_register(struct RISC *risc, uint32_t address);
-static void risc_store_register(struct RISC *risc, uint32_t address, uint32_t value);
+static uint32_t risc_load_io(struct RISC *risc, uint32_t address);
+static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value);
 
 // Not very portable :)
 union float_cvt { float f; uint32_t u; };
@@ -291,7 +291,7 @@ static uint32_t risc_load_word(struct RISC *risc, uint32_t address) {
   if (address < RegStart) {
     return risc->RAM[address/4];
   } else {
-    return risc_load_register(risc, address);
+    return risc_load_io(risc, address);
   }
 }
 
@@ -304,7 +304,7 @@ static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value)
   if (address < RegStart) {
     risc->RAM[address/4] = value;
   } else {
-    risc_store_register(risc, address, value);
+    risc_store_io(risc, address, value);
   }
 }
 
@@ -318,7 +318,7 @@ static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) 
   }
 }
 
-static uint32_t risc_load_register(struct RISC *risc, uint32_t address) {
+static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
   switch (address - RegStart) {
     case 0: {
       // millisecond counter
@@ -365,7 +365,7 @@ static uint32_t risc_load_register(struct RISC *risc, uint32_t address) {
   }
 }
 
-static void risc_store_register(struct RISC *risc, uint32_t address, uint32_t value) {
+static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
   switch (address - RegStart) {
     case 4: {
       // LED control
