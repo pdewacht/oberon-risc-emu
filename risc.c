@@ -42,6 +42,7 @@ enum {
 };
 
 static void risc_single_step(struct RISC *risc);
+static void risc_set_register(struct RISC *risc, int reg, uint32_t value);
 static uint32_t risc_load_word(struct RISC *risc, uint32_t address);
 static uint8_t risc_load_byte(struct RISC *risc, uint32_t address);
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value);
@@ -219,9 +220,7 @@ static void risc_single_step(struct RISC *risc) {
         break;
       }
     }
-    risc->R[a] = a_val;
-    risc->Z = a_val == 0;
-    risc->N = (int32_t)a_val < 0;
+    risc_set_register(risc, a, a_val);
   }
   else if ((ir & qbit) == 0) {
     // Memory instructions
@@ -237,9 +236,7 @@ static void risc_single_step(struct RISC *risc) {
       } else {
         a_val = risc_load_byte(risc, address);
       }
-      risc->R[a] = a_val;
-      risc->Z = a_val == 0;
-      risc->N = (int32_t)a_val < 0;
+      risc_set_register(risc, a, a_val);
     } else {
       if ((ir & vbit) == 0) {
         risc_store_word(risc, address, risc->R[a]);
@@ -271,7 +268,7 @@ static void risc_single_step(struct RISC *risc) {
     }
     if (t) {
       if ((ir & vbit) != 0) {
-        risc->R[15] = risc->PC * 4;
+        risc_set_register(risc, 15, risc->PC * 4);
       }
       if ((ir & ubit) == 0) {
         uint32_t c = ir & 0x0000000F;
@@ -282,6 +279,12 @@ static void risc_single_step(struct RISC *risc) {
       }
     }
   }
+}
+
+static void risc_set_register(struct RISC *risc, int reg, uint32_t value) {
+  risc->R[reg] = value;
+  risc->Z = value == 0;
+  risc->N = (int32_t)value < 0;
 }
 
 static uint32_t risc_load_word(struct RISC *risc, uint32_t address) {
