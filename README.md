@@ -36,3 +36,6 @@ Current emulation status
 
 * LEDs
   * Printed on stdout.
+
+* Reset button
+  * Press F12 to abort if you get stuck in an infinite loop.
