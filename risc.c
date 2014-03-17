@@ -62,16 +62,20 @@ static const uint32_t bootloader[ROMWords] = {
 struct RISC *risc_new(const char *disk_file) {
   struct RISC *risc = calloc(1, sizeof(*risc));
   memcpy(risc->ROM, bootloader, sizeof(risc->ROM));
-  risc->PC = ROMStart/4;
   if (disk_file) {
     risc->sd_card = disk_new(disk_file);
   }
+  risc_reset(risc);
   return risc;
 }
 
 void risc_free(struct RISC *risc) {
   disk_free(risc->sd_card);
   free(risc);
+}
+
+void risc_reset(struct RISC *risc) {
+  risc->PC = ROMStart/4;
 }
 
 void risc_run(struct RISC *risc, int cycles) {

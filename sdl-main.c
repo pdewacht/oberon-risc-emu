@@ -75,15 +75,22 @@ int main (int argc, char *argv[]) {
           break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
-          risc_mouse_button(risc, event.button.button, event.button.state);
+          risc_mouse_button(risc, event.button.button,
+                            event.button.state == SDL_PRESSED);
           break;
         case SDL_KEYDOWN:
         case SDL_KEYUP: {
-          uint8_t scancode[MAX_PS2_CODE_LEN];
-          int len = ps2_encode(event.key.keysym.scancode,
-                               event.key.state,
-                               scancode);
-          risc_keyboard_input(risc, scancode, len);
+          if (event.key.keysym.sym == SDLK_F12) {
+            if (event.key.state == SDL_PRESSED) {
+              risc_reset(risc);
+            }
+          } else {
+            uint8_t scancode[MAX_PS2_CODE_LEN];
+            int len = ps2_encode(event.key.keysym.scancode,
+                                 event.key.state == SDL_PRESSED,
+                                 scancode);
+            risc_keyboard_input(risc, scancode, len);
+          }
           break;
         }
       }

@@ -9,6 +9,7 @@ struct RISC;
 struct RISC *risc_new(const char *disk_file);
 void risc_free(struct RISC *risc);
 
+void risc_reset(struct RISC *risc);
 void risc_run(struct RISC *risc, int cycles);
 void risc_set_time(struct RISC *risc, uint32_t tick);
 void risc_mouse_moved(struct RISC *risc, int mouse_x, int mouse_y);
