@@ -18,7 +18,8 @@ static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 //static uint32_t BLACK = 0x0000FF, WHITE = 0xFFFF00;
 //static uint32_t BLACK = 0x000000, WHITE = 0x00FF00;
 
-void render_to_texture(uint32_t *framebuffer, SDL_Texture *texture);
+void init_texture(SDL_Texture *texture);
+void update_texture(uint32_t *framebuffer, SDL_Texture *texture);
 
 int main (int argc, char *argv[]) {
   if (argc != 2) {
@@ -33,11 +34,14 @@ int main (int argc, char *argv[]) {
   }
   atexit(SDL_Quit);
 
+  SDL_EnableScreenSaver();
+  SDL_ShowCursor(false);
+
   SDL_Window *window = SDL_CreateWindow("Project Oberon",
                                         SDL_WINDOWPOS_UNDEFINED,
                                         SDL_WINDOWPOS_UNDEFINED,
                                         SCREEN_WIDTH, SCREEN_HEIGHT,
-                                        SDL_WINDOW_SHOWN);
+                                        SDL_WINDOW_HIDDEN);
   if (window == NULL) {
     fprintf(stderr, "Could not create window: %s\n", SDL_GetError());
     return 1;
@@ -58,7 +62,10 @@ int main (int argc, char *argv[]) {
     return 1;
   }
 
-  SDL_ShowCursor(false);
+  init_texture(texture);
+  SDL_RenderCopy(renderer, texture, NULL, NULL);
+  SDL_RenderPresent(renderer);
+  SDL_ShowWindow(window);
 
   bool done = false;
   SDL_Event event;
@@ -99,7 +106,7 @@ int main (int argc, char *argv[]) {
     risc_set_time(risc, frame_start);
     risc_run(risc, CPU_HZ / FPS);
 
-    render_to_texture(risc_get_framebuffer_ptr(risc), texture);
+    update_texture(risc_get_framebuffer_ptr(risc), texture);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 
@@ -113,21 +120,20 @@ int main (int argc, char *argv[]) {
   return 0;
 }
 
-void render_to_texture(uint32_t *framebuffer, SDL_Texture *texture) {
-  static uint32_t cache[SCREEN_WIDTH * SCREEN_HEIGHT / 32];
-  static uint32_t buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 
-  static bool first = true;
-  if (first) {
-    first = false;
-    memset(cache, 0, sizeof(cache));
-    for (size_t i = 0; i < sizeof(buffer)/sizeof(buffer[0]); ++i) {
-      buffer[i] = BLACK;
-    }
-    SDL_UpdateTexture(texture, NULL, buffer, SCREEN_WIDTH * 4);
+static uint32_t cache[SCREEN_WIDTH * SCREEN_HEIGHT / 32];
+static uint32_t buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
+
+void init_texture(SDL_Texture *texture) {
+  memset(cache, 0, sizeof(cache));
+  for (size_t i = 0; i < sizeof(buffer)/sizeof(buffer[0]); ++i) {
+    buffer[i] = BLACK;
   }
+  SDL_UpdateTexture(texture, NULL, buffer, SCREEN_WIDTH * 4);
+}
 
-  // TODO: move dirty rectangle tracking into emulator core?
+void update_texture(uint32_t *framebuffer, SDL_Texture *texture) {
+ // TODO: move dirty rectangle tracking into emulator core?
   int dirty_y1 = SCREEN_HEIGHT;
   int dirty_y2 = 0;
   int dirty_x1 = SCREEN_WIDTH / 32;
