@@ -11,8 +11,7 @@
 #define ROMStart     0x0FE000
 #define ROMWords     512
 #define DisplayStart 0x0E7F00
-#define DIsplayEnd   (DisplayStart + 1024*768/8)
-#define RegStart     0x0FFFC0
+#define IOStart     0x0FFFC0
 
 struct RISC {
   uint32_t PC;
@@ -143,7 +142,7 @@ static void risc_single_step(struct RISC *risc) {
         break;
       }
       case ASR: {
-        a_val = ((int32_t) b_val) >> (c_val & 31);
+        a_val = ((int32_t)b_val) >> (c_val & 31);
         break;
       }
       case ROR: {
@@ -167,28 +166,26 @@ static void risc_single_step(struct RISC *risc) {
         break;
       }
       case ADD: {
-        uint64_t tmp = (uint64_t)b_val + c_val;
-        if ((ir & ubit) & risc->C) {
-          tmp++;
+        a_val = b_val + c_val;
+        if ((ir & ubit) != 0 && risc->C) {
+          a_val++;
         }
-        a_val = (uint32_t) tmp;
-        risc->C = tmp >> 32;
+        risc->C = a_val < b_val;
         risc->V = (~(b_val ^ c_val) & (a_val ^ b_val)) >> 31;
         break;
       }
       case SUB: {
-        uint64_t tmp = (uint64_t)b_val - c_val;
-        if ((ir & ubit) & risc->C) {
-          tmp--;
+        a_val = b_val - c_val;
+        if ((ir & ubit) != 0 && risc->C) {
+          a_val--;
         }
-        a_val = (uint32_t)tmp;
-        risc->C = tmp >> 32;
+        risc->C = a_val > b_val;
         risc->V = ((b_val ^ c_val) & (a_val ^ b_val)) >> 31;
         break;
       }
       case MUL: {
         uint64_t tmp;
-        if ((ir & ubit)) {
+        if ((ir & ubit) == 0) {
           tmp = (int64_t)(int32_t)b_val * (int64_t)(int32_t)c_val;
         } else {
           tmp = (uint64_t)b_val * (uint64_t)c_val;
@@ -292,7 +289,7 @@ static void risc_set_register(struct RISC *risc, int reg, uint32_t value) {
 }
 
 static uint32_t risc_load_word(struct RISC *risc, uint32_t address) {
-  if (address < RegStart) {
+  if (address < IOStart) {
     return risc->RAM[address/4];
   } else {
     return risc_load_io(risc, address);
@@ -305,7 +302,7 @@ static uint8_t risc_load_byte(struct RISC *risc, uint32_t address) {
 }
 
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value) {
-  if (address < RegStart) {
+  if (address < IOStart) {
     risc->RAM[address/4] = value;
   } else {
     risc_store_io(risc, address, value);
@@ -313,7 +310,7 @@ static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value)
 }
 
 static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) {
-  if (address < RegStart) {
+  if (address < IOStart) {
     uint32_t w = risc_load_word(risc, address);
     uint32_t shift = (address & 3) * 8;
     w &= ~(0xFFu << shift);
@@ -323,14 +320,14 @@ static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) 
 }
 
 static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
-  switch (address - RegStart) {
+  switch (address - IOStart) {
     case 0: {
-      // millisecond counter
+      // Millisecond counter
       risc->progress--;
       return risc->current_tick;
     }
     case 4: {
-      // switches
+      // Switches
       return 0;
     }
     case 16: {
@@ -342,10 +339,12 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
     }
     case 20: {
       // SPI status
+      // Bit 0: rx ready
+      // Other bits unused
       return 1;
     }
     case 24: {
-      // mouse
+      // Mouse input / keyboard status
       uint32_t mouse = risc->mouse;
       if (risc->key_cnt > 0) {
         mouse |= 0x10000000;
@@ -355,6 +354,7 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
       return mouse;
     }
     case 28: {
+      // Keyboard input
       if (risc->key_cnt > 0) {
         uint8_t scancode = risc->key_buf[0];
         risc->key_cnt--;
@@ -370,7 +370,7 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
 }
 
 static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
-  switch (address - RegStart) {
+  switch (address - IOStart) {
     case 4: {
       // LED control
       risc->leds = value;
@@ -386,6 +386,7 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
       break;
     }
     case 16: {
+      // SPI write
       if (risc->spi_selected == 1 && risc->sd_card) {
         disk_write(risc->sd_card, value);
       }
@@ -393,6 +394,10 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
     }
     case 20: {
       // SPI control
+      // Bit 0-1: slave select
+      // Bit 2:   fast mode
+      // Bit 3:   netwerk enable
+      // Other bits unused
       risc->spi_selected = value & 3;
       break;
     }
@@ -416,9 +421,10 @@ void risc_mouse_moved(struct RISC *risc, int mouse_x, int mouse_y) {
 void risc_mouse_button(struct RISC *risc, int button, bool down) {
   if (button >= 1 && button < 4) {
     int bit = 1 << (27 - button);
-    risc->mouse &= ~bit;
     if (down) {
       risc->mouse |= bit;
+    } else {
+      risc->mouse &= ~bit;
     }
   }
 }
@@ -433,4 +439,3 @@ void risc_keyboard_input(struct RISC *risc, uint8_t *scancodes, uint32_t len) {
 uint32_t *risc_get_framebuffer_ptr(struct RISC *risc) {
   return &risc->RAM[DisplayStart/4];
 }
-
