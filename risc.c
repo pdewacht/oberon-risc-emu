@@ -6,6 +6,7 @@
 #include "risc.h"
 #include "risc-fp.h"
 #include "risc-sd.h"
+#include "pclink.h"
 
 #define MemSize      0x100000
 #define MemWords     (MemSize / 4)
@@ -308,11 +309,13 @@ static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value)
 
 static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) {
   if (address < IOStart) {
-    uint32_t w = risc_load_word(risc, address);
+    uint32_t w = risc->RAM[address/4];
     uint32_t shift = (address & 3) * 8;
     w &= ~(0xFFu << shift);
     w |= (uint32_t)value << shift;
-    risc_store_word(risc, address, w);
+    risc->RAM[address/4] = w;
+  } else {
+    risc_store_io(risc, address, (uint32_t)value);
   }
 }
 
@@ -326,6 +329,14 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
     case 4: {
       // Switches
       return 0;
+    }
+    case 8: {
+      // RS232 data
+      return PCLink_RData();
+    }
+    case 12: {
+      // RS232 status
+      return PCLink_RStat();
     }
     case 16: {
       // SPI data
@@ -381,6 +392,10 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
       }
       printf("\n");
       break;
+    }
+    case 8: {
+      // RS232 data
+      PCLink_TData(value);
     }
     case 16: {
       // SPI write

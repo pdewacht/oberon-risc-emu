@@ -28,7 +28,10 @@ Current emulation status
     hack the SD card routines, you'll need to use real hardware.
 
 * RS-232
-  * Not implemented.
+  * Implements PCLink protocol to send/receive single files at a time
+    e.g. to receive Test.Mod into Oberon, run PCLink1.Start,
+    then in host risc current directory, `echo Test.Mod > PCLink.REC`
+  * Thanks to Paul Reed
 
 * Network
   * Not implemented.
