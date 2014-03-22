@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "risc.h"
+#include "risc-fp.h"
 #include "risc-sd.h"
 
 #define MemSize      0x100000
@@ -11,7 +12,7 @@
 #define ROMStart     0x0FE000
 #define ROMWords     512
 #define DisplayStart 0x0E7F00
-#define IOStart     0x0FFFC0
+#define IOStart      0x0FFFC0
 
 struct RISC {
   uint32_t PC;
@@ -49,14 +50,10 @@ static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value);
 static uint32_t risc_load_io(struct RISC *risc, uint32_t address);
 static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value);
 
-// Not very portable :)
-union float_cvt { float f; uint32_t u; };
-static float u2f(uint32_t u) { return (union float_cvt){ .u = u }.f; }
-static float f2u(float f) { return (union float_cvt){ .f = f }.u; }
-
 static const uint32_t bootloader[ROMWords] = {
 #include "risc-boot.inc"
 };
+
 
 struct RISC *risc_new(const char *disk_file) {
   struct RISC *risc = calloc(1, sizeof(*risc));
@@ -205,19 +202,19 @@ static void risc_single_step(struct RISC *risc) {
         break;
       }
       case FAD: {
-        a_val = f2u(u2f(b_val) + u2f(c_val));
+        a_val = fp_add(b_val, c_val, ir & ubit, ir & vbit);
         break;
       }
       case FSB: {
-        a_val = f2u(u2f(b_val) - u2f(c_val));
+        a_val = fp_add(b_val, c_val ^ 0x80000000, ir & ubit, ir & vbit);
         break;
       }
       case FML: {
-        a_val = f2u(u2f(b_val) * u2f(c_val));
+        a_val = fp_mul(b_val, c_val);
         break;
       }
       case FDV: {
-        a_val = f2u(u2f(b_val) / u2f(c_val));
+        a_val = fp_div(b_val, c_val);
         break;
       }
     }

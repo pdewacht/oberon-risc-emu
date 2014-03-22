@@ -14,8 +14,7 @@ Current emulation status
 ------------------------
 
 * CPU
-  * Mostly works. Floating point instructions are incomplete and
-    not portable.
+  * Mostly works. Floating point instructions still need testing.
 
 * Keyboard and mouse
   * OK. Note that Oberon assumes you have a US keyboard layout and
