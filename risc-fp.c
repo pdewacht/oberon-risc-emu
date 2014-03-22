@@ -37,7 +37,7 @@ uint32_t fp_add(uint32_t x, uint32_t y, bool u, bool v) {
   int32_t s = ((sum < 0) ? -sum : sum) + 1;
 
   uint32_t e1 = e0 + 1;
-  uint32_t t3 = s >> 1;
+  uint32_t t3 = (uint32_t)s >> 1;
   if ((s & 0x3fffffc) != 0) {
     while ((t3 & (1<<24)) == 0) {
       t3 <<= 1;

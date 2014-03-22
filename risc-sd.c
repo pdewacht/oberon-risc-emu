@@ -106,7 +106,7 @@ uint32_t disk_read(struct Disk *disk) {
 }
 
 static void disk_run_command(struct Disk *disk) {
-  uint8_t cmd = disk->rx_buf[0];
+  uint32_t cmd = disk->rx_buf[0];
   uint32_t arg = (disk->rx_buf[1] << 24)
     | (disk->rx_buf[2] << 16)
     | (disk->rx_buf[3] << 8)
@@ -152,10 +152,10 @@ static void read_sector(FILE *f, uint32_t buf[static 128]) {
 static void write_sector(FILE *f, uint32_t buf[static 128]) {
   uint8_t bytes[512];
   for (int i = 0; i < 128; i++) {
-    bytes[i*4+0] = (buf[i]      ) & 0xFF;
-    bytes[i*4+1] = (buf[i] >>  8) & 0xFF;
-    bytes[i*4+2] = (buf[i] >> 16) & 0xFF;
-    bytes[i*4+3] = (buf[i] >> 24) & 0xFF;
+    bytes[i*4+0] = (uint8_t)(buf[i]      );
+    bytes[i*4+1] = (uint8_t)(buf[i] >>  8);
+    bytes[i*4+2] = (uint8_t)(buf[i] >> 16);
+    bytes[i*4+3] = (uint8_t)(buf[i] >> 24);
   }
   fwrite(bytes, 512, 1, f);
 }

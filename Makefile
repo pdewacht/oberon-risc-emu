@@ -1,5 +1,5 @@
 
-CFLAGS = -g -Os -Wall -Wextra 
+CFLAGS = -g -Os -Wall -Wextra -Wconversion -Wno-sign-conversion
 
 RISC_CFLAGS = $(CFLAGS) -std=c99 `sdl2-config --cflags --libs`
 

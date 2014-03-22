@@ -125,10 +125,10 @@ static void risc_single_step(struct RISC *risc) {
           a_val = c_val << 16;
         } else if ((ir & vbit) != 0) {
           a_val = 0xD0 |   // FIXME ???
-            (risc->N * 0x80000000) |
-            (risc->Z * 0x40000000) |
-            (risc->C * 0x20000000) |
-            (risc->V * 0x10000000);
+            (risc->N * 0x80000000U) |
+            (risc->Z * 0x40000000U) |
+            (risc->C * 0x20000000U) |
+            (risc->V * 0x10000000U);
         } else {
           a_val = risc->H;
         }
@@ -188,7 +188,7 @@ static void risc_single_step(struct RISC *risc) {
           tmp = (uint64_t)b_val * (uint64_t)c_val;
         }
         a_val = (uint32_t)tmp;
-        risc->H = tmp >> 32;
+        risc->H = (uint32_t)(tmp >> 32);
         break;
       }
       case DIV: {
@@ -239,7 +239,7 @@ static void risc_single_step(struct RISC *risc) {
       if ((ir & vbit) == 0) {
         risc_store_word(risc, address, risc->R[a]);
       } else {
-        risc_store_byte(risc, address, risc->R[a]);
+        risc_store_byte(risc, address, (uint8_t)risc->R[a]);
       }
     }
   }
@@ -295,7 +295,7 @@ static uint32_t risc_load_word(struct RISC *risc, uint32_t address) {
 
 static uint8_t risc_load_byte(struct RISC *risc, uint32_t address) {
   uint32_t w = risc_load_word(risc, address);
-  return w >> ((address & 3) * 8);
+  return (uint8_t)(w >> (address % 4 * 8));
 }
 
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value) {
@@ -417,7 +417,7 @@ void risc_mouse_moved(struct RISC *risc, int mouse_x, int mouse_y) {
 
 void risc_mouse_button(struct RISC *risc, int button, bool down) {
   if (button >= 1 && button < 4) {
-    int bit = 1 << (27 - button);
+    uint32_t bit = 1 << (27 - button);
     if (down) {
       risc->mouse |= bit;
     } else {
