@@ -19,6 +19,7 @@ Current emulation status
 * Keyboard and mouse
   * OK. Note that Oberon assumes you have a US keyboard layout and
     a three button mouse.
+  * The left alt key can now be used to emulate a middle click.
 
 * Display
   * OK. You can adjust the colors by editing `sdl-main.c`.
