@@ -149,13 +149,15 @@ int main (int argc, char *argv[]) {
         case SDL_KEYDOWN:
         case SDL_KEYUP: {
           bool down = event.key.state == SDL_PRESSED;
-          if (event.key.keysym.sym == SDLK_F12) {
+          SDL_Keysym k = event.key.keysym;
+          if (k.sym == SDLK_F12) {
             // F12 = Oberon reset
             if (down) {
               risc_reset(risc);
             }
-          } else if (event.key.keysym.sym == SDLK_F11) {
-            // F11 = Toggle fullscreen
+          } else if (k.sym == SDLK_F11 ||
+                     (k.sym == SDLK_f && (k.mod & KMOD_GUI) && (k.mod & KMOD_SHIFT))) {
+            // F11 / Cmd-Shift-F = Toggle fullscreen
             if (down) {
               fullscreen ^= true;
               if (fullscreen) {
@@ -164,13 +166,13 @@ int main (int argc, char *argv[]) {
                 SDL_SetWindowFullscreen(window, 0);
               }
             }
-          } else if (event.key.keysym.sym == SDLK_LALT) {
+          } else if (k.sym == SDLK_LALT) {
             // Emulate middle button
             risc_mouse_button(risc, 2, down);
           } else {
             // Pass other keys to Oberon
             uint8_t scancode[MAX_PS2_CODE_LEN];
-            int len = ps2_encode(event.key.keysym.scancode, down, scancode);
+            int len = ps2_encode(k.scancode, down, scancode);
             risc_keyboard_input(risc, scancode, len);
           }
           break;
