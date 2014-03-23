@@ -22,6 +22,7 @@ Current emulation status
 
 * Display
   * OK. You can adjust the colors by editing `sdl-main.c`.
+  * Use F11 to toggle full screne display.
 
 * SD-Card
   * Very inaccurate, but good enough for Oberon. If you're going to

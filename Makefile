@@ -1,7 +1,7 @@
 
 CFLAGS = -g -Os -Wall -Wextra -Wconversion -Wno-sign-conversion
 
-RISC_CFLAGS = $(CFLAGS) -std=c99 `sdl2-config --cflags --libs`
+RISC_CFLAGS = $(CFLAGS) -std=c99 `sdl2-config --cflags --libs` -lm
 
 RISC_SOURCE = \
 	sdl-main.c \
