@@ -1,7 +1,7 @@
 #include "risc-fp.h"
 
 uint32_t fp_add(uint32_t x, uint32_t y, bool u, bool v) {
-  uint32_t xs = x & 0x80000000;
+  bool xs = (x & 0x80000000) != 0;
   uint32_t xe;
   int32_t x0;
   if (!u) {
@@ -13,7 +13,7 @@ uint32_t fp_add(uint32_t x, uint32_t y, bool u, bool v) {
     x0 = (int32_t)(x & 0x00FFFFFF) << 8 >> 7;
   }
 
-  uint32_t ys = y & 0x80000000;
+  bool ys = (y & 0x80000000) != 0;
   uint32_t ye = (y >> 23) & 0xFF;
   uint32_t ym = ((y & 0x7FFFFF) << 1);
   if (!u && !v) ym |= 0x1000000;
@@ -33,12 +33,14 @@ uint32_t fp_add(uint32_t x, uint32_t y, bool u, bool v) {
     y3 = shift > 31 ? y0 >> 31 : y0 >> shift;
   }
 
-  int32_t sum = x3 + y3;
-  int32_t s = ((sum < 0) ? -sum : sum) + 1;
+  uint32_t sum = ((xs << 26) | (xs << 25) | (x3 & 0x01FFFFFF))
+    + ((ys << 26) | (ys << 25) | (y3 & 0x01FFFFFF));
+
+  uint32_t s = (((sum & (1 << 26)) ? -sum : sum) + 1) & 0x07FFFFFF;
 
   uint32_t e1 = e0 + 1;
-  uint32_t t3 = (uint32_t)s >> 1;
-  if ((s & 0x3fffffc) != 0) {
+  uint32_t t3 = s >> 1;
+  if ((s & 0x3FFFFFC) != 0) {
     while ((t3 & (1<<24)) == 0) {
       t3 <<= 1;
       e1--;
@@ -49,15 +51,15 @@ uint32_t fp_add(uint32_t x, uint32_t y, bool u, bool v) {
   }
 
   if (v) {
-    return (uint32_t)(sum >> 1);
+    return (int32_t)(sum << 5) >> 6;
   } else if ((x & 0x7FFFFFFF) == 0) {
     return !u ? y : 0;
   } else if ((y & 0x7FFFFFFF) == 0) {
     return x;
-  } else if (t3 == 0 || (int32_t)e1 < 0) {
+  } else if ((t3 & 0x01FFFFFF) == 0 || (e1 & 0x100) != 0) {
     return 0;
   } else {
-    return ((uint32_t)sum & 0x80000000) | (e1 << 23) | ((t3 >> 1) & 0x7FFFFF);
+    return ((sum & 0x04000000) << 5) | (e1 << 23) | ((t3 >> 1) & 0x7FFFFF);
   }
 }
 

@@ -193,12 +193,17 @@ static void risc_single_step(struct RISC *risc) {
         break;
       }
       case DIV: {
-        // what to do with a negative divisor?
-        a_val = (int32_t)b_val / (int32_t)c_val;
-        risc->H = (int32_t)b_val % (int32_t)c_val;
-        if ((int32_t)risc->H < 0) {
-          a_val--;
-          risc->H += c_val;
+        if ((int32_t)c_val <= 0) {
+          fprintf(stderr, "ERROR: PC 0x%08X: divisor %d is not positive\n", risc->PC*4 - 4, c_val);
+          a_val = 0xDEADBEEF;
+          risc->H = 0xDEADBEEF;
+        } else {
+          a_val = (int32_t)b_val / (int32_t)c_val;
+          risc->H = (int32_t)b_val % (int32_t)c_val;
+          if ((int32_t)risc->H < 0) {
+            a_val--;
+            risc->H += c_val;
+          }
         }
         break;
       }
