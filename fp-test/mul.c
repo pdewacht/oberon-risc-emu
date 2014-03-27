@@ -39,6 +39,6 @@ int main() {
       printf("mul: %d%% (%d errors)\n", p, errors);
     }
   }
-  printf("mul: %d of %d errors\n", errors, count);
+  printf("mul: errors: %d tests: %d\n", errors, count);
   return errors != 0;
 }

@@ -33,6 +33,6 @@ int main() {
     errors += fp != v;
     count += 1;
   }
-  printf("flr: errors: %d of %d\n", errors, count);
+  printf("flr: errors: %d tests: %d\n", errors, count);
   return errors != 0;
 }

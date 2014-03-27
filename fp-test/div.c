@@ -16,8 +16,6 @@ static uint32_t v_div(uint32_t in_x, uint32_t in_y) {
   run = 1;
   do {
     cycle();
-    /* printf("run=%d stall=%d S=%2d A2=%08x B2=%08x z=%08x \n", */
-    /*        run, stall(), S.val, A2.val, B2.val, z()); */
   } while (stall());
   return z();
 }
@@ -41,6 +39,6 @@ int main() {
       printf("div: %d%% (%d errors)\n", p, errors);
     }
   }
-  printf("div: %d of %d errors\n", errors, count);
+  printf("div: errors: %d tests: %d\n", errors, count);
   return errors != 0;
 }

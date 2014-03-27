@@ -17,9 +17,7 @@ static uint32_t v_add(uint32_t in_x, uint32_t in_y) {
   run = 1;
   do {
     cycle();
-    /* printf("run=%d stallR=%d Sum=%08x s=%08x x3=%08x y3=%08x z=%08x \n", */
-    /*        run, stallR, Sum.val, s().val, x3().val, y3().val, z()); */
-  } while (stallR);
+  } while (stall());
   return z();
 }
 
@@ -36,6 +34,6 @@ int main() {
     errors += fp != v;
     count += 1;
   }
-  printf("flt: %d of %d errors\n", errors, count);
+  printf("flt: errors: %d tests: %d\n", errors, count);
   return errors != 0;
 }

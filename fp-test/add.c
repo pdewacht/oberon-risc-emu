@@ -39,7 +39,6 @@ int main() {
       printf("add: %d%% (%d errors)\n", p, errors);
     }
   }
-  fprintf(stderr, "\n");
-  printf("add: errors: %d of %d\n", errors, count);
+  printf("add: errors: %d tests: %d\n", errors, count);
   return errors != 0;
 }
