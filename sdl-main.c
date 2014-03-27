@@ -8,9 +8,6 @@
 #include "risc.h"
 #include "sdl-ps2.h"
 
-#define SCREEN_WIDTH 1024
-#define SCREEN_HEIGHT 768
-
 #define CPU_HZ 25000000
 #define FPS 60
 
@@ -66,9 +63,9 @@ int main (int argc, char *argv[]) {
     for (int i = 0; i < display_cnt; i++) {
       SDL_Rect bounds;
       SDL_GetDisplayBounds(i, &bounds);
-      if (bounds.w >= SCREEN_WIDTH && bounds.h == SCREEN_HEIGHT) {
+      if (bounds.w >= RISC_SCREEN_WIDTH && bounds.h == RISC_SCREEN_HEIGHT) {
         window_pos = SDL_WINDOWPOS_UNDEFINED_DISPLAY(i);
-        if (bounds.w == SCREEN_WIDTH)
+        if (bounds.w == RISC_SCREEN_WIDTH)
           break;
       }
     }
@@ -76,7 +73,7 @@ int main (int argc, char *argv[]) {
 
   SDL_Window *window = SDL_CreateWindow("Project Oberon",
                                         window_pos, window_pos,
-                                        SCREEN_WIDTH, SCREEN_HEIGHT,
+                                        RISC_SCREEN_WIDTH, RISC_SCREEN_HEIGHT,
                                         window_flags);
   if (window == NULL) {
     fprintf(stderr, "Could not create window: %s\n", SDL_GetError());
@@ -92,7 +89,7 @@ int main (int argc, char *argv[]) {
   SDL_Texture *texture = SDL_CreateTexture(renderer,
                                            SDL_PIXELFORMAT_ARGB8888,
                                            SDL_TEXTUREACCESS_STREAMING,
-                                           SCREEN_WIDTH, SCREEN_HEIGHT);
+                                           RISC_SCREEN_WIDTH, RISC_SCREEN_HEIGHT);
   if (texture == NULL) {
     fprintf(stderr, "Could not create texture: %s\n", SDL_GetError());
     return 1;
@@ -128,14 +125,14 @@ int main (int argc, char *argv[]) {
         case SDL_MOUSEMOTION: {
           int scaled_x = (int)round((event.motion.x - display_rect.x) * display_scale);
           int scaled_y = (int)round((event.motion.y - display_rect.y) * display_scale);
-          int x = clamp(scaled_x, 0, SCREEN_WIDTH - 1);
-          int y = clamp(scaled_y, 0, SCREEN_HEIGHT - 1);
+          int x = clamp(scaled_x, 0, RISC_SCREEN_WIDTH - 1);
+          int y = clamp(scaled_y, 0, RISC_SCREEN_HEIGHT - 1);
           bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
           if (mouse_is_offscreen != mouse_was_offscreen) {
             SDL_ShowCursor(mouse_is_offscreen);
             mouse_was_offscreen = mouse_is_offscreen;
           }
-          risc_mouse_moved(risc, x, SCREEN_HEIGHT - y - 1);
+          risc_mouse_moved(risc, x, RISC_SCREEN_HEIGHT - y - 1);
           break;
         }
 
@@ -207,47 +204,47 @@ static int clamp(int x, int min, int max) {
 static SDL_Rect scale_display(SDL_Window *window, double *display_scale) {
   int win_w, win_h;
   SDL_GetWindowSize(window, &win_w, &win_h);
-  double oberon_aspect = (double)SCREEN_WIDTH / SCREEN_HEIGHT;
+  double oberon_aspect = (double)RISC_SCREEN_WIDTH / RISC_SCREEN_HEIGHT;
   double window_aspect = (double)win_w / win_h;
   if (fabs(oberon_aspect - window_aspect) < 0.0001) {
     // Aspect ratios are equal
-    *display_scale = (double)SCREEN_WIDTH / win_w;
+    *display_scale = (double)RISC_SCREEN_WIDTH / win_w;
     return (SDL_Rect){ .x = 0, .y = 0, .w = win_w, .h = win_h };
   }
   else if (oberon_aspect > window_aspect) {
     // Oberon display is wider than our window -- letterbox it
-    *display_scale = (double)SCREEN_WIDTH / win_w;
-    int h = (int)ceil(SCREEN_HEIGHT / *display_scale);
+    *display_scale = (double)RISC_SCREEN_WIDTH / win_w;
+    int h = (int)ceil(RISC_SCREEN_HEIGHT / *display_scale);
     return (SDL_Rect){ .x = 0, .y = (win_h - h) / 2, .w = win_w, .h = h };
   } else {
     // Oberon display is taller than our window
-    *display_scale = (double)SCREEN_HEIGHT / win_h;
-    int w = (int)ceil(SCREEN_WIDTH / *display_scale);
+    *display_scale = (double)RISC_SCREEN_HEIGHT / win_h;
+    int w = (int)ceil(RISC_SCREEN_WIDTH / *display_scale);
     return (SDL_Rect){ .x = (win_w - w) / 2, .y = 0, .w = w, .h = win_h };
   }
 }
 
-static uint32_t cache[SCREEN_WIDTH * SCREEN_HEIGHT / 32];
-static uint32_t buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
+static uint32_t cache[RISC_SCREEN_WIDTH * RISC_SCREEN_HEIGHT / 32];
+static uint32_t buffer[RISC_SCREEN_WIDTH * RISC_SCREEN_HEIGHT];
 
 static void init_texture(SDL_Texture *texture) {
   memset(cache, 0, sizeof(cache));
   for (size_t i = 0; i < sizeof(buffer)/sizeof(buffer[0]); ++i) {
     buffer[i] = BLACK;
   }
-  SDL_UpdateTexture(texture, NULL, buffer, SCREEN_WIDTH * 4);
+  SDL_UpdateTexture(texture, NULL, buffer, RISC_SCREEN_WIDTH * 4);
 }
 
 static void update_texture(uint32_t *framebuffer, SDL_Texture *texture) {
  // TODO: move dirty rectangle tracking into emulator core?
-  int dirty_y1 = SCREEN_HEIGHT;
+  int dirty_y1 = RISC_SCREEN_HEIGHT;
   int dirty_y2 = 0;
-  int dirty_x1 = SCREEN_WIDTH / 32;
+  int dirty_x1 = RISC_SCREEN_WIDTH / 32;
   int dirty_x2 = 0;
 
   int idx = 0;
-  for (int line = SCREEN_HEIGHT - 1; line >= 0; line--) {
-    for (int col = 0; col < SCREEN_WIDTH / 32; col++) {
+  for (int line = RISC_SCREEN_HEIGHT - 1; line >= 0; line--) {
+    for (int col = 0; col < RISC_SCREEN_WIDTH / 32; col++) {
       uint32_t pixels = framebuffer[idx];
       if (pixels != cache[idx]) {
         cache[idx] = pixels;
@@ -256,7 +253,7 @@ static void update_texture(uint32_t *framebuffer, SDL_Texture *texture) {
         if (col < dirty_x1) dirty_x1 = col;
         if (col > dirty_x2) dirty_x2 = col;
 
-        uint32_t *buf_ptr = &buffer[line * SCREEN_WIDTH + col * 32];
+        uint32_t *buf_ptr = &buffer[line * RISC_SCREEN_WIDTH + col * 32];
         for (int b = 0; b < 32; b++) {
           *buf_ptr++ = (pixels & 1) ? WHITE : BLACK;
           pixels >>= 1;
@@ -273,7 +270,7 @@ static void update_texture(uint32_t *framebuffer, SDL_Texture *texture) {
       .w = (dirty_x2 - dirty_x1 + 1) * 32,
       .h = dirty_y2 - dirty_y1 + 1,
     };
-    void *ptr = &buffer[dirty_y1 * SCREEN_WIDTH + dirty_x1 * 32];
-    SDL_UpdateTexture(texture, &rect, ptr, SCREEN_WIDTH * 4);
+    void *ptr = &buffer[dirty_y1 * RISC_SCREEN_WIDTH + dirty_x1 * 32];
+    SDL_UpdateTexture(texture, &rect, ptr, RISC_SCREEN_WIDTH * 4);
   }
 }

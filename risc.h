@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define RISC_SCREEN_WIDTH 1024
+#define RISC_SCREEN_HEIGHT 768
+
 struct RISC;
 
 struct RISC *risc_new(const char *disk_file);

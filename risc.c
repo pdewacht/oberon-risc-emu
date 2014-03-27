@@ -12,7 +12,8 @@
 #define MemWords     (MemSize / 4)
 #define ROMStart     0x0FE000
 #define ROMWords     512
-#define DisplayStart 0x0E7F00
+#define DisplayEnd   0x0FFF00
+#define DisplayStart (DisplayEnd - RISC_SCREEN_WIDTH * RISC_SCREEN_HEIGHT / 8)
 #define IOStart      0x0FFFC0
 
 struct RISC {
@@ -427,10 +428,10 @@ void risc_set_time(struct RISC *risc, uint32_t tick) {
 }
 
 void risc_mouse_moved(struct RISC *risc, int mouse_x, int mouse_y) {
-  if (mouse_x >= 0 && mouse_x < 1024) {
+  if (mouse_x >= 0 && mouse_x < 4096) {
     risc->mouse = (risc->mouse & ~0x00000FFF) | mouse_x;
   }
-  if (mouse_y >= 0 && mouse_y < 1024) {
+  if (mouse_y >= 0 && mouse_y < 4096) {
     risc->mouse = (risc->mouse & ~0x00FFF000) | (mouse_y << 12);
   }
 }
