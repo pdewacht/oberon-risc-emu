@@ -8,7 +8,8 @@ Requirements: a C99 compiler (e.g. [GCC](http://gcc.gnu.org/),
 [clang](http://clang.llvm.org/)) and [SDL2](http://libsdl.org/).
 
 A suitable disk image can be downloaded from http://projectoberon.com/ (in
-S3RISCinstall.zip).
+S3RISCinstall.zip). **Warning**: Images downloaded before 2014-03-29 have
+broken floating point.
 
 Current emulation status
 ------------------------
