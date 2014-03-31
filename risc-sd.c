@@ -16,6 +16,7 @@ enum DiskState {
 struct Disk {
   enum DiskState state;
   FILE *file;
+  uint32_t offset;
 
   uint32_t rx_buf[128];
   int rx_idx;
@@ -38,6 +39,10 @@ struct Disk *disk_new(const char *filename) {
     fprintf(stderr, "Can't open file \"%s\": %s\n", filename, strerror(errno));
     exit(1);
   }
+
+  // Check for filesystem-only image, starting directly at sector 1 (DiskAdr 29)
+  read_sector(disk->file, &disk->tx_buf[0]);
+  disk->offset = (disk->tx_buf[0] == 0x9B1EA38D)? 0x80002 : 0;
 
   return disk;
 }
@@ -117,14 +122,14 @@ static void disk_run_command(struct Disk *disk) {
       disk->state = diskRead;
       disk->tx_buf[0] = 0;
       disk->tx_buf[1] = 254;
-      fseek(disk->file, arg * 512, SEEK_SET);
+      fseek(disk->file, (arg - disk->offset) * 512, SEEK_SET);
       read_sector(disk->file, &disk->tx_buf[2]);
       disk->tx_cnt = 2 + 128;
       break;
     }
     case 88: {
       disk->state = diskWrite;
-      fseek(disk->file, arg * 512, SEEK_SET);
+      fseek(disk->file, (arg - disk->offset) * 512, SEEK_SET);
       disk->tx_buf[0] = 0;
       disk->tx_cnt = 1;
       break;
