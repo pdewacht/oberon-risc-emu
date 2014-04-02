@@ -49,10 +49,12 @@ int ps2_encode(int sdl_scancode, bool make, uint8_t out[static MAX_PS2_CODE_LEN]
         // fake shift press
         out[i++] = 0xE0;
         out[i++] = 0x12;
-      }
-      out[i++] = 0xE0;
-      out[i++] = info.code;
-      if (!make) {
+        out[i++] = 0xE0;
+        out[i++] = info.code;
+      } else {
+        out[i++] = 0xE0;
+        out[i++] = 0xF0;
+        out[i++] = info.code;
         // fake shift release
         out[i++] = 0xE0;
         out[i++] = 0xF0;
