@@ -10,6 +10,22 @@
 #define REC 0x21
 #define SND 0x22
 
+#ifndef S_IRGRP
+#define S_IRGRP 0
+#endif
+
+#ifndef S_IWGRP
+#define S_IWGRP 0
+#endif
+
+#ifndef S_IROTH
+#define S_IROTH 0
+#endif
+
+#ifndef S_IWOTH
+#define S_IWOTH 0
+#endif
+
 static const char * RecName = "PCLink.REC";  // e.g. echo Test.Mod > PCLink.REC
 static const char * SndName = "PCLink.SND";
 static uint8_t mode = 0;
