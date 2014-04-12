@@ -402,6 +402,7 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
     case 8: {
       // RS232 data
       PCLink_TData(value);
+      break;
     }
     case 16: {
       // SPI write
