@@ -21,7 +21,7 @@ static void init_texture(SDL_Texture *texture);
 static void update_texture(uint32_t *framebuffer, SDL_Texture *texture);
 
 static int clamp(int x, int min, int max);
-static SDL_Rect scale_display(SDL_Window *window, double *scale);
+static double scale_display(SDL_Window *window, SDL_Rect *rect);
 
 static void usage() {
   fprintf(stderr, "Usage: risc [--fullscreen] disk-file-name\n");
@@ -95,8 +95,8 @@ int main (int argc, char *argv[]) {
     return 1;
   }
 
-  double display_scale;
-  SDL_Rect display_rect = scale_display(window, &display_scale);
+  SDL_Rect display_rect;
+  double display_scale = scale_display(window, &display_rect);
   init_texture(texture);
   SDL_ShowWindow(window);
   SDL_RenderClear(renderer);
@@ -117,14 +117,14 @@ int main (int argc, char *argv[]) {
 
         case SDL_WINDOWEVENT: {
           if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
-            display_rect = scale_display(window, &display_scale);
+            display_scale = scale_display(window, &display_rect);
           }
           break;
         }
 
         case SDL_MOUSEMOTION: {
-          int scaled_x = (int)round((event.motion.x - display_rect.x) * display_scale);
-          int scaled_y = (int)round((event.motion.y - display_rect.y) * display_scale);
+          int scaled_x = (int)round((event.motion.x - display_rect.x) / display_scale);
+          int scaled_y = (int)round((event.motion.y - display_rect.y) / display_scale);
           int x = clamp(scaled_x, 0, RISC_SCREEN_WIDTH - 1);
           int y = clamp(scaled_y, 0, RISC_SCREEN_HEIGHT - 1);
           bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
@@ -206,27 +206,27 @@ static int clamp(int x, int min, int max) {
   return x;
 }
 
-static SDL_Rect scale_display(SDL_Window *window, double *display_scale) {
+static double scale_display(SDL_Window *window, SDL_Rect *rect) {
   int win_w, win_h;
   SDL_GetWindowSize(window, &win_w, &win_h);
   double oberon_aspect = (double)RISC_SCREEN_WIDTH / RISC_SCREEN_HEIGHT;
   double window_aspect = (double)win_w / win_h;
-  if (fabs(oberon_aspect - window_aspect) < 0.0001) {
-    // Aspect ratios are equal
-    *display_scale = (double)RISC_SCREEN_WIDTH / win_w;
-    return (SDL_Rect){ .x = 0, .y = 0, .w = win_w, .h = win_h };
-  }
-  else if (oberon_aspect > window_aspect) {
-    // Oberon display is wider than our window -- letterbox it
-    *display_scale = (double)RISC_SCREEN_WIDTH / win_w;
-    int h = (int)ceil(RISC_SCREEN_HEIGHT / *display_scale);
-    return (SDL_Rect){ .x = 0, .y = (win_h - h) / 2, .w = win_w, .h = h };
+
+  double scale;
+  if (oberon_aspect > window_aspect) {
+    scale = (double)win_w / RISC_SCREEN_WIDTH;
   } else {
-    // Oberon display is taller than our window
-    *display_scale = (double)RISC_SCREEN_HEIGHT / win_h;
-    int w = (int)ceil(RISC_SCREEN_WIDTH / *display_scale);
-    return (SDL_Rect){ .x = (win_w - w) / 2, .y = 0, .w = w, .h = win_h };
+    scale = (double)win_h / RISC_SCREEN_HEIGHT;
   }
+
+  int w = (int)ceil(RISC_SCREEN_WIDTH * scale);
+  int h = (int)ceil(RISC_SCREEN_HEIGHT * scale);
+  *rect = (SDL_Rect){
+    .w = w, .h = h,
+    .x = (win_w - w) / 2,
+    .y = (win_h - h) / 2
+  };
+  return scale;
 }
 
 static uint32_t cache[RISC_SCREEN_WIDTH * RISC_SCREEN_HEIGHT / 32];
