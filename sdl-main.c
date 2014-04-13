@@ -163,6 +163,11 @@ int main (int argc, char *argv[]) {
                 SDL_SetWindowFullscreen(window, 0);
               }
             }
+          } else if (k.sym == SDLK_F4 && (k.mod & KMOD_ALT)) {
+            // Alt-F4 = quit (for when we're running without windowing system)
+            if (down) {
+              SDL_PushEvent(&(SDL_Event){ .type=SDL_QUIT });
+            }
           } else if (k.sym == SDLK_LALT) {
             // Emulate middle button
             risc_mouse_button(risc, 2, down);
