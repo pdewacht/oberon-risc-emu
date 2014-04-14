@@ -224,6 +224,9 @@ static void risc_single_step(struct RISC *risc) {
         a_val = fp_div(b_val, c_val);
         break;
       }
+      default: {
+        abort();  // unreachable
+      }
     }
     risc_set_register(risc, a, a_val);
   }
@@ -270,6 +273,7 @@ static void risc_single_step(struct RISC *risc) {
       case 13: t = !(risc->N != risc->V); break;
       case 14: t = !((risc->N != risc->V) || risc->Z); break;
       case 15: t = false; break;
+      default: abort();  // unreachable
     }
     if (t) {
       if ((ir & vbit) != 0) {
