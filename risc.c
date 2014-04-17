@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <SDL.h>
 #include "risc.h"
 #include "risc-fp.h"
 #include "risc-sd.h"
@@ -381,6 +382,17 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
       }
       return 0;
     }
+    case 32: {
+      // Clipboard
+      if (SDL_HasClipboardText()) {
+        char* clipboard = SDL_GetClipboardText();
+        uint32_t length = (uint32_t) strlen(clipboard);
+        SDL_free(clipboard);
+        return length;
+      } else {
+        return 0;
+      }
+    }
     default: {
       return 0;
     }
@@ -422,6 +434,31 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
       // Bit 3:   netwerk enable
       // Other bits unused
       risc->spi_selected = value & 3;
+      break;
+    }
+    case 32: {
+      // Clipboard
+      uint32_t ptr = value & 0x7FFFFFFF;
+      char* text = ((char*)risc->RAM) + ptr;
+      if ((value & 0x80000000) != 0) {
+        // store
+        char* ptr = text;
+        while(*ptr) {
+          if (*ptr == '\r') *ptr = '\n';
+          ptr++;
+        }
+        SDL_SetClipboardText(text);
+      } else {
+         // load
+         char* clipboard = SDL_GetClipboardText();
+         char* ptr = clipboard;
+         while (*ptr) { // do not copy null byte!
+           *text = (*ptr == '\n') ? '\r' : *ptr;
+           ptr++;
+           text++;
+         }
+         SDL_free(clipboard);
+      }
       break;
     }
   }
