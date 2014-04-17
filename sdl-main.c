@@ -18,21 +18,29 @@ static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 
 
 static void init_texture(SDL_Texture *texture);
-static void update_texture(uint32_t *framebuffer, SDL_Texture *texture);
+static void update_texture(uint32_t *framebuffer, SDL_Texture *texture, int width, int height);
 
 static int clamp(int x, int min, int max);
-static double scale_display(SDL_Window *window, SDL_Rect *rect);
+static double scale_display(SDL_Window *window, SDL_Rect *rect, int width, int height);
 
 static void usage() {
-  fprintf(stderr, "Usage: risc [--fullscreen] disk-file-name\n");
+  fprintf(stderr, "Usage: risc [--fullscreen] [--size <width> <height>] disk-file-name\n");
   exit(1);
 }
 
 int main (int argc, char *argv[]) {
   bool fullscreen = false;
+  int width=0, height=0;
   while (argc > 1 && argv[1][0] == '-') {
     if (strcmp(argv[1], "--fullscreen") == 0) {
       fullscreen = true;
+    } else if (strcmp(argv[1], "--size") == 0 && argc >= 5) {
+      width = atoi(argv[2]);
+      height = atoi(argv[3]);
+      if (width < 1 || height < 1 || width > RISC_SCREEN_WIDTH || height > RISC_SCREEN_HEIGHT || width % 32 != 0) {
+        usage();
+      }
+      argc-=2; argv+=2;
     } else {
       usage();
     }
@@ -43,6 +51,13 @@ int main (int argc, char *argv[]) {
   }
 
   struct RISC *risc = risc_new(argv[1]);
+
+  if (width) {
+    risc_set_screen_size(risc, width, height);
+  } else {
+    width = RISC_SCREEN_WIDTH;
+    height = RISC_SCREEN_HEIGHT;
+  }
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
@@ -73,7 +88,7 @@ int main (int argc, char *argv[]) {
 
   SDL_Window *window = SDL_CreateWindow("Project Oberon",
                                         window_pos, window_pos,
-                                        RISC_SCREEN_WIDTH, RISC_SCREEN_HEIGHT,
+                                        width, height,
                                         window_flags);
   if (window == NULL) {
     fprintf(stderr, "Could not create window: %s\n", SDL_GetError());
@@ -89,14 +104,14 @@ int main (int argc, char *argv[]) {
   SDL_Texture *texture = SDL_CreateTexture(renderer,
                                            SDL_PIXELFORMAT_ARGB8888,
                                            SDL_TEXTUREACCESS_STREAMING,
-                                           RISC_SCREEN_WIDTH, RISC_SCREEN_HEIGHT);
+                                           width, height);
   if (texture == NULL) {
     fprintf(stderr, "Could not create texture: %s\n", SDL_GetError());
     return 1;
   }
 
   SDL_Rect display_rect;
-  double display_scale = scale_display(window, &display_rect);
+  double display_scale = scale_display(window, &display_rect, width, height);
   init_texture(texture);
   SDL_ShowWindow(window);
   SDL_RenderClear(renderer);
@@ -117,7 +132,7 @@ int main (int argc, char *argv[]) {
 
         case SDL_WINDOWEVENT: {
           if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
-            display_scale = scale_display(window, &display_rect);
+            display_scale = scale_display(window, &display_rect, width, height);
           }
           break;
         }
@@ -125,14 +140,14 @@ int main (int argc, char *argv[]) {
         case SDL_MOUSEMOTION: {
           int scaled_x = (int)round((event.motion.x - display_rect.x) / display_scale);
           int scaled_y = (int)round((event.motion.y - display_rect.y) / display_scale);
-          int x = clamp(scaled_x, 0, RISC_SCREEN_WIDTH - 1);
-          int y = clamp(scaled_y, 0, RISC_SCREEN_HEIGHT - 1);
+          int x = clamp(scaled_x, 0, width - 1);
+          int y = clamp(scaled_y, 0, height - 1);
           bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
           if (mouse_is_offscreen != mouse_was_offscreen) {
             SDL_ShowCursor(mouse_is_offscreen);
             mouse_was_offscreen = mouse_is_offscreen;
           }
-          risc_mouse_moved(risc, x, RISC_SCREEN_HEIGHT - y - 1);
+          risc_mouse_moved(risc, x, height - y - 1);
           break;
         }
 
@@ -185,7 +200,7 @@ int main (int argc, char *argv[]) {
     risc_set_time(risc, frame_start);
     risc_run(risc, CPU_HZ / FPS);
 
-    update_texture(risc_get_framebuffer_ptr(risc), texture);
+    update_texture(risc_get_framebuffer_ptr(risc), texture, width, height);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, &display_rect);
     SDL_RenderPresent(renderer);
@@ -206,21 +221,21 @@ static int clamp(int x, int min, int max) {
   return x;
 }
 
-static double scale_display(SDL_Window *window, SDL_Rect *rect) {
+static double scale_display(SDL_Window *window, SDL_Rect *rect, int width, int height) {
   int win_w, win_h;
   SDL_GetWindowSize(window, &win_w, &win_h);
-  double oberon_aspect = (double)RISC_SCREEN_WIDTH / RISC_SCREEN_HEIGHT;
+  double oberon_aspect = (double)width / height;
   double window_aspect = (double)win_w / win_h;
 
   double scale;
   if (oberon_aspect > window_aspect) {
-    scale = (double)win_w / RISC_SCREEN_WIDTH;
+    scale = (double)win_w / width;
   } else {
-    scale = (double)win_h / RISC_SCREEN_HEIGHT;
+    scale = (double)win_h / height;
   }
 
-  int w = (int)ceil(RISC_SCREEN_WIDTH * scale);
-  int h = (int)ceil(RISC_SCREEN_HEIGHT * scale);
+  int w = (int)ceil(width * scale);
+  int h = (int)ceil(height * scale);
   *rect = (SDL_Rect){
     .w = w, .h = h,
     .x = (win_w - w) / 2,
@@ -240,7 +255,7 @@ static void init_texture(SDL_Texture *texture) {
   SDL_UpdateTexture(texture, NULL, buffer, RISC_SCREEN_WIDTH * 4);
 }
 
-static void update_texture(uint32_t *framebuffer, SDL_Texture *texture) {
+static void update_texture(uint32_t *framebuffer, SDL_Texture *texture, int width, int height) {
  // TODO: move dirty rectangle tracking into emulator core?
   int dirty_y1 = RISC_SCREEN_HEIGHT;
   int dirty_y2 = 0;
@@ -248,17 +263,16 @@ static void update_texture(uint32_t *framebuffer, SDL_Texture *texture) {
   int dirty_x2 = 0;
 
   int idx = 0;
-  for (int line = RISC_SCREEN_HEIGHT - 1; line >= 0; line--) {
+  for (int line = height - 1; line >= 0; line--) {
     for (int col = 0; col < RISC_SCREEN_WIDTH / 32; col++) {
       uint32_t pixels = framebuffer[idx];
-      if (pixels != cache[idx]) {
+      if (col * 32 < width && pixels != cache[idx]) {
         cache[idx] = pixels;
         if (line < dirty_y1) dirty_y1 = line;
         if (line > dirty_y2) dirty_y2 = line;
         if (col < dirty_x1) dirty_x1 = col;
         if (col > dirty_x2) dirty_x2 = col;
-
-        uint32_t *buf_ptr = &buffer[line * RISC_SCREEN_WIDTH + col * 32];
+        uint32_t *buf_ptr = &buffer[line * width + col * 32];
         for (int b = 0; b < 32; b++) {
           *buf_ptr++ = (pixels & 1) ? WHITE : BLACK;
           pixels >>= 1;
@@ -275,7 +289,7 @@ static void update_texture(uint32_t *framebuffer, SDL_Texture *texture) {
       .w = (dirty_x2 - dirty_x1 + 1) * 32,
       .h = dirty_y2 - dirty_y1 + 1,
     };
-    void *ptr = &buffer[dirty_y1 * RISC_SCREEN_WIDTH + dirty_x1 * 32];
-    SDL_UpdateTexture(texture, &rect, ptr, RISC_SCREEN_WIDTH * 4);
+    void *ptr = &buffer[dirty_y1 * width + dirty_x1 * 32];
+    SDL_UpdateTexture(texture, &rect, ptr, width * 4);
   }
 }

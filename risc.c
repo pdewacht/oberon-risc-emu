@@ -459,6 +459,12 @@ void risc_keyboard_input(struct RISC *risc, uint8_t *scancodes, uint32_t len) {
   }
 }
 
+void risc_set_screen_size(struct RISC *risc, int width, int height) {
+  risc->RAM[DisplayStart/4] = 0x53697A65; // magic value SIZE
+  risc->RAM[DisplayStart/4+1] = width;
+  risc->RAM[DisplayStart/4+2] = height;
+}
+
 uint32_t *risc_get_framebuffer_ptr(struct RISC *risc) {
   return &risc->RAM[DisplayStart/4];
 }
