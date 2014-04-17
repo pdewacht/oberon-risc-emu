@@ -18,6 +18,7 @@ void risc_set_time(struct RISC *risc, uint32_t tick);
 void risc_mouse_moved(struct RISC *risc, int mouse_x, int mouse_y);
 void risc_mouse_button(struct RISC *risc, int button, bool down);
 void risc_keyboard_input(struct RISC *risc, uint8_t *scancodes, uint32_t len);
+void risc_set_screen_size(struct RISC *risc, int width, int height);
 
 uint32_t *risc_get_framebuffer_ptr(struct RISC *risc);
 
