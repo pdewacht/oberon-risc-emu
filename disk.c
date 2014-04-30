@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include "risc-sd.h"
+#include "disk.h"
 
 enum DiskState {
   diskCommand,
@@ -14,6 +14,8 @@ enum DiskState {
 };
 
 struct Disk {
+  struct RISC_SPI spi;
+
   enum DiskState state;
   FILE *file;
   uint32_t offset;
@@ -26,12 +28,21 @@ struct Disk {
   int tx_idx;
 };
 
+
+static uint32_t disk_read(const struct RISC_SPI *spi);
+static void disk_write(const struct RISC_SPI *spi, uint32_t value);
 static void disk_run_command(struct Disk *disk);
 static void read_sector(FILE *f, uint32_t buf[static 128]);
 static void write_sector(FILE *f, uint32_t buf[static 128]);
 
-struct Disk *disk_new(const char *filename) {
+
+struct RISC_SPI *disk_new(const char *filename) {
   struct Disk *disk = calloc(1, sizeof(*disk));
+  disk->spi = (struct RISC_SPI) {
+    .read_data = disk_read,
+    .write_data = disk_write
+  };
+
   disk->state = diskCommand;
 
   disk->file = fopen(filename, "rb+");
@@ -44,15 +55,11 @@ struct Disk *disk_new(const char *filename) {
   read_sector(disk->file, &disk->tx_buf[0]);
   disk->offset = (disk->tx_buf[0] == 0x9B1EA38D)? 0x80002 : 0;
 
-  return disk;
+  return &disk->spi;
 }
 
-void disk_free(struct Disk *disk) {
-  fclose(disk->file);
-  free(disk);
-}
-
-void disk_write(struct Disk *disk, uint32_t value) {
+static void disk_write(const struct RISC_SPI *spi, uint32_t value) {
+  struct Disk *disk = (struct Disk *)spi;
   disk->tx_idx++;
   switch (disk->state) {
     case diskCommand: {
@@ -84,7 +91,7 @@ void disk_write(struct Disk *disk, uint32_t value) {
       if (disk->rx_idx < 128) {
         disk->rx_buf[disk->rx_idx] = value;
       }
-      disk->rx_idx++;        
+      disk->rx_idx++;
       if (disk->rx_idx == 128) {
         write_sector(disk->file, &disk->rx_buf[0]);
       }
@@ -94,13 +101,14 @@ void disk_write(struct Disk *disk, uint32_t value) {
         disk->tx_idx = -1;
         disk->rx_idx = 0;
         disk->state = diskCommand;
-      } 
+      }
       break;
     }
   }
 }
 
-uint32_t disk_read(struct Disk *disk) {
+static uint32_t disk_read(const struct RISC_SPI *spi) {
+  struct Disk *disk = (struct Disk *)spi;
   uint32_t result;
   if (disk->tx_idx >= 0 && disk->tx_idx < disk->tx_cnt) {
     result = disk->tx_buf[disk->tx_idx];
@@ -145,8 +153,8 @@ static void disk_run_command(struct Disk *disk) {
 
 static void read_sector(FILE *f, uint32_t buf[static 128]) {
   uint8_t bytes[512] = { 0 };
-  fread(bytes, 512, 1, f);  
-  for (int i = 0; i < 128; i++) {    
+  fread(bytes, 512, 1, f);
+  for (int i = 0; i < 128; i++) {
     buf[i] = (uint32_t)bytes[i*4+0]
       | ((uint32_t)bytes[i*4+1] << 8)
       | ((uint32_t)bytes[i*4+2] << 16)
@@ -164,4 +172,3 @@ static void write_sector(FILE *f, uint32_t buf[static 128]) {
   }
   fwrite(bytes, 512, 1, f);
 }
-

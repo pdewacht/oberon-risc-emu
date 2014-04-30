@@ -1,11 +1,8 @@
 #ifndef PCLINK_H
 #define PCLINK_H
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "risc-io.h"
 
-uint32_t PCLink_RData();
-uint32_t PCLink_RStat();
-void PCLink_TData(uint32_t value);
+const struct RISC_Serial pclink;
 
 #endif  // PCLINK_H

@@ -1,4 +1,5 @@
 // pclink.c for Peter De Wachter's RISC emulator PDR 20.3.14
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -25,6 +26,7 @@
 #ifndef S_IWOTH
 #define S_IWOTH 0
 #endif
+
 
 static const char * RecName = "PCLink.REC";  // e.g. echo Test.Mod > PCLink.REC
 static const char * SndName = "PCLink.SND";
@@ -55,7 +57,7 @@ static bool GetJob(const char *JobName) {
   return res;
 }
 
-uint32_t PCLink_RStat() {
+static uint32_t PCLink_RStat(const struct RISC_Serial *serial) {
   struct stat st;
 
   if (!mode) {
@@ -84,7 +86,7 @@ uint32_t PCLink_RStat() {
   return 2 + (mode != 0);  // xmit always ready
 }
 
-uint32_t PCLink_RData() {
+static uint32_t PCLink_RData(const struct RISC_Serial *serial) {
   uint8_t ch = 0;
 
   if (mode) {
@@ -119,7 +121,7 @@ uint32_t PCLink_RData() {
   return ch;
 }
 
-void PCLink_TData(uint32_t value) {
+static void PCLink_TData(const struct RISC_Serial *serial, uint32_t value) {
   if (mode) {
     if (txcount == 0) {
       if (value != ACK) {
@@ -148,3 +150,10 @@ void PCLink_TData(uint32_t value) {
   }
   txcount++;
 }
+
+
+const struct RISC_Serial pclink = {
+  .read_status = PCLink_RStat,
+  .read_data = PCLink_RData,
+  .write_data = PCLink_TData
+};

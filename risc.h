@@ -3,14 +3,16 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "risc-io.h"
 
 #define RISC_SCREEN_WIDTH 1024
 #define RISC_SCREEN_HEIGHT 768
 
 struct RISC;
 
-struct RISC *risc_new(const char *disk_file);
-void risc_free(struct RISC *risc);
+struct RISC *risc_new();
+void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial);
+void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi);
 
 void risc_reset(struct RISC *risc);
 void risc_run(struct RISC *risc, int cycles);

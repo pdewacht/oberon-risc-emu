@@ -6,6 +6,9 @@
 #include <math.h>
 #include <SDL.h>
 #include "risc.h"
+#include "disk.h"
+#include "pclink.h"
+#include "raw-serial.h"
 #include "sdl-ps2.h"
 
 #define CPU_HZ 25000000
@@ -42,7 +45,10 @@ int main (int argc, char *argv[]) {
     usage();
   }
 
-  struct RISC *risc = risc_new(argv[1]);
+  struct RISC *risc = risc_new();
+  risc_set_serial(risc, &pclink);
+  //risc_set_serial(risc, raw_serial_new(3, 4));
+  risc_set_spi(risc, 1, disk_new(argv[1]));
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());

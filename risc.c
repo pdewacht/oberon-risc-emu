@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include "risc.h"
 #include "risc-fp.h"
-#include "risc-sd.h"
-#include "pclink.h"
 
 #define MemSize      0x100000
 #define MemWords     (MemSize / 4)
@@ -29,8 +27,10 @@ struct RISC {
   uint32_t key_cnt;
   uint32_t leds;
 
+  const struct RISC_Serial *serial;
+
   uint32_t spi_selected;
-  struct Disk *sd_card;
+  const struct RISC_SPI *sd_card;
 
   uint32_t RAM[MemWords];
   uint32_t ROM[ROMWords];
@@ -57,19 +57,21 @@ static const uint32_t bootloader[ROMWords] = {
 };
 
 
-struct RISC *risc_new(const char *disk_file) {
+struct RISC *risc_new() {
   struct RISC *risc = calloc(1, sizeof(*risc));
   memcpy(risc->ROM, bootloader, sizeof(risc->ROM));
-  if (disk_file) {
-    risc->sd_card = disk_new(disk_file);
-  }
   risc_reset(risc);
   return risc;
 }
 
-void risc_free(struct RISC *risc) {
-  disk_free(risc->sd_card);
-  free(risc);
+void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial) {
+  risc->serial = serial;
+}
+
+void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi) {
+  if (index == 1) {
+    risc->sd_card = spi;
+  }
 }
 
 void risc_reset(struct RISC *risc) {
@@ -342,16 +344,22 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
     }
     case 8: {
       // RS232 data
-      return PCLink_RData();
+      if (risc->serial) {
+        return risc->serial->read_data(risc->serial);
+      }
+      return 0;
     }
     case 12: {
       // RS232 status
-      return PCLink_RStat();
+      if (risc->serial) {
+        return risc->serial->read_status(risc->serial);
+      }
+      return 0;
     }
     case 16: {
       // SPI data
       if (risc->spi_selected == 1 && risc->sd_card) {
-        return disk_read(risc->sd_card);
+        return risc->sd_card->read_data(risc->sd_card);
       }
       return 255;
     }
@@ -405,13 +413,15 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
     }
     case 8: {
       // RS232 data
-      PCLink_TData(value);
+      if (risc->serial) {
+        risc->serial->write_data(risc->serial, value);
+      }
       break;
     }
     case 16: {
       // SPI write
       if (risc->spi_selected == 1 && risc->sd_card) {
-        disk_write(risc->sd_card, value);
+        risc->sd_card->write_data(risc->sd_card, value);
       }
       break;
     }
