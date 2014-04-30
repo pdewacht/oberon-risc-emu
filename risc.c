@@ -172,7 +172,7 @@ static void risc_single_step(struct RISC *risc) {
           a_val++;
         }
         risc->C = a_val < b_val;
-        risc->V = (~(b_val ^ c_val) & (a_val ^ b_val)) >> 31;
+        risc->V = ((a_val ^ c_val) & (a_val ^ b_val)) >> 31;
         break;
       }
       case SUB: {
