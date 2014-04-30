@@ -10,8 +10,7 @@
 #define MemWords     (MemSize / 4)
 #define ROMStart     0x0FE000
 #define ROMWords     512
-#define DisplayEnd   0x0FFF00
-#define DisplayStart (DisplayEnd - RISC_SCREEN_WIDTH * RISC_SCREEN_HEIGHT / 8)
+#define DisplayStart 0x0E7F00
 #define IOStart      0x0FFFC0
 
 struct RISC {
@@ -28,9 +27,10 @@ struct RISC {
   uint32_t leds;
 
   const struct RISC_Serial *serial;
-
   uint32_t spi_selected;
   const struct RISC_SPI *sd_card;
+
+  struct Damage damage;
 
   uint32_t RAM[MemWords];
   uint32_t ROM[ROMWords];
@@ -60,6 +60,11 @@ static const uint32_t bootloader[ROMWords] = {
 struct RISC *risc_new() {
   struct RISC *risc = calloc(1, sizeof(*risc));
   memcpy(risc->ROM, bootloader, sizeof(risc->ROM));
+  risc->damage = (struct Damage){
+    .x1 = 0, .y1 = 0,
+    .x2 = RISC_FRAMEBUFFER_WIDTH/32 - 1,
+    .y2 = RISC_FRAMEBUFFER_HEIGHT - 1
+  };
   risc_reset(risc);
   return risc;
 }
@@ -311,9 +316,29 @@ static uint8_t risc_load_byte(struct RISC *risc, uint32_t address) {
   return (uint8_t)(w >> (address % 4 * 8));
 }
 
+static void risc_update_damage(struct RISC *risc, int w) {
+  int row = w / (RISC_FRAMEBUFFER_WIDTH / 32);
+  int col = w % (RISC_FRAMEBUFFER_WIDTH / 32);
+  if (col < risc->damage.x1) {
+    risc->damage.x1 = col;
+  }
+  if (col > risc->damage.x2) {
+    risc->damage.x2 = col;
+  }
+  if (row < risc->damage.y1) {
+    risc->damage.y1 = row;
+  }
+  if (row > risc->damage.y2) {
+    risc->damage.y2 = row;
+  }
+}
+
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value) {
-  if (address < IOStart) {
+  if (address < DisplayStart) {
     risc->RAM[address/4] = value;
+  } else if (address < IOStart) {
+    risc->RAM[address/4] = value;
+    risc_update_damage(risc, address/4 - DisplayStart/4);
   } else {
     risc_store_io(risc, address, value);
   }
@@ -321,11 +346,11 @@ static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value)
 
 static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) {
   if (address < IOStart) {
-    uint32_t w = risc->RAM[address/4];
+    uint32_t w = risc_load_word(risc, address);
     uint32_t shift = (address & 3) * 8;
     w &= ~(0xFFu << shift);
     w |= (uint32_t)value << shift;
-    risc->RAM[address/4] = w;
+    risc_store_word(risc, address, w);
   } else {
     risc_store_io(risc, address, (uint32_t)value);
   }
@@ -471,4 +496,15 @@ void risc_keyboard_input(struct RISC *risc, uint8_t *scancodes, uint32_t len) {
 
 uint32_t *risc_get_framebuffer_ptr(struct RISC *risc) {
   return &risc->RAM[DisplayStart/4];
+}
+
+struct Damage risc_get_framebuffer_damage(struct RISC *risc) {
+  struct Damage dmg = risc->damage;
+  risc->damage = (struct Damage){
+    .x1 = RISC_FRAMEBUFFER_WIDTH/32,
+    .x2 = 0,
+    .y1 = RISC_FRAMEBUFFER_HEIGHT,
+    .y2 = 0
+  };
+  return dmg;
 }

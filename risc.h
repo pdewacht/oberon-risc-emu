@@ -5,10 +5,14 @@
 #include <stdint.h>
 #include "risc-io.h"
 
-#define RISC_SCREEN_WIDTH 1024
-#define RISC_SCREEN_HEIGHT 768
+#define RISC_FRAMEBUFFER_WIDTH 1024
+#define RISC_FRAMEBUFFER_HEIGHT 768
 
 struct RISC;
+
+struct Damage {
+  int x1, x2, y1, y2;
+};
 
 struct RISC *risc_new();
 void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial);
@@ -22,5 +26,6 @@ void risc_mouse_button(struct RISC *risc, int button, bool down);
 void risc_keyboard_input(struct RISC *risc, uint8_t *scancodes, uint32_t len);
 
 uint32_t *risc_get_framebuffer_ptr(struct RISC *risc);
+struct Damage risc_get_framebuffer_damage(struct RISC *risc);
 
 #endif  // RISC_H

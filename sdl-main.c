@@ -20,8 +20,7 @@ static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 //static uint32_t BLACK = 0x000000, WHITE = 0x00FF00;
 
 
-static void init_texture(SDL_Texture *texture);
-static void update_texture(uint32_t *framebuffer, SDL_Texture *texture);
+static void update_texture(struct RISC *risc, SDL_Texture *texture);
 
 static int clamp(int x, int min, int max);
 static double scale_display(SDL_Window *window, SDL_Rect *rect);
@@ -69,9 +68,9 @@ int main (int argc, char *argv[]) {
     for (int i = 0; i < display_cnt; i++) {
       SDL_Rect bounds;
       SDL_GetDisplayBounds(i, &bounds);
-      if (bounds.w >= RISC_SCREEN_WIDTH && bounds.h == RISC_SCREEN_HEIGHT) {
+      if (bounds.w >= RISC_FRAMEBUFFER_WIDTH && bounds.h == RISC_FRAMEBUFFER_HEIGHT) {
         window_pos = SDL_WINDOWPOS_UNDEFINED_DISPLAY(i);
-        if (bounds.w == RISC_SCREEN_WIDTH)
+        if (bounds.w == RISC_FRAMEBUFFER_WIDTH)
           break;
       }
     }
@@ -79,7 +78,8 @@ int main (int argc, char *argv[]) {
 
   SDL_Window *window = SDL_CreateWindow("Project Oberon",
                                         window_pos, window_pos,
-                                        RISC_SCREEN_WIDTH, RISC_SCREEN_HEIGHT,
+                                        RISC_FRAMEBUFFER_WIDTH,
+                                        RISC_FRAMEBUFFER_HEIGHT,
                                         window_flags);
   if (window == NULL) {
     fprintf(stderr, "Could not create window: %s\n", SDL_GetError());
@@ -95,7 +95,8 @@ int main (int argc, char *argv[]) {
   SDL_Texture *texture = SDL_CreateTexture(renderer,
                                            SDL_PIXELFORMAT_ARGB8888,
                                            SDL_TEXTUREACCESS_STREAMING,
-                                           RISC_SCREEN_WIDTH, RISC_SCREEN_HEIGHT);
+                                           RISC_FRAMEBUFFER_WIDTH,
+                                           RISC_FRAMEBUFFER_HEIGHT);
   if (texture == NULL) {
     fprintf(stderr, "Could not create texture: %s\n", SDL_GetError());
     return 1;
@@ -103,7 +104,7 @@ int main (int argc, char *argv[]) {
 
   SDL_Rect display_rect;
   double display_scale = scale_display(window, &display_rect);
-  init_texture(texture);
+  update_texture(risc, texture);
   SDL_ShowWindow(window);
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture, NULL, &display_rect);
@@ -131,14 +132,14 @@ int main (int argc, char *argv[]) {
         case SDL_MOUSEMOTION: {
           int scaled_x = (int)round((event.motion.x - display_rect.x) / display_scale);
           int scaled_y = (int)round((event.motion.y - display_rect.y) / display_scale);
-          int x = clamp(scaled_x, 0, RISC_SCREEN_WIDTH - 1);
-          int y = clamp(scaled_y, 0, RISC_SCREEN_HEIGHT - 1);
+          int x = clamp(scaled_x, 0, RISC_FRAMEBUFFER_WIDTH - 1);
+          int y = clamp(scaled_y, 0, RISC_FRAMEBUFFER_HEIGHT - 1);
           bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
           if (mouse_is_offscreen != mouse_was_offscreen) {
             SDL_ShowCursor(mouse_is_offscreen);
             mouse_was_offscreen = mouse_is_offscreen;
           }
-          risc_mouse_moved(risc, x, RISC_SCREEN_HEIGHT - y - 1);
+          risc_mouse_moved(risc, x, RISC_FRAMEBUFFER_HEIGHT - y - 1);
           break;
         }
 
@@ -191,7 +192,7 @@ int main (int argc, char *argv[]) {
     risc_set_time(risc, frame_start);
     risc_run(risc, CPU_HZ / FPS);
 
-    update_texture(risc_get_framebuffer_ptr(risc), texture);
+    update_texture(risc, texture);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, &display_rect);
     SDL_RenderPresent(renderer);
@@ -215,18 +216,18 @@ static int clamp(int x, int min, int max) {
 static double scale_display(SDL_Window *window, SDL_Rect *rect) {
   int win_w, win_h;
   SDL_GetWindowSize(window, &win_w, &win_h);
-  double oberon_aspect = (double)RISC_SCREEN_WIDTH / RISC_SCREEN_HEIGHT;
+  double oberon_aspect = (double)RISC_FRAMEBUFFER_WIDTH / RISC_FRAMEBUFFER_HEIGHT;
   double window_aspect = (double)win_w / win_h;
 
   double scale;
   if (oberon_aspect > window_aspect) {
-    scale = (double)win_w / RISC_SCREEN_WIDTH;
+    scale = (double)win_w / RISC_FRAMEBUFFER_WIDTH;
   } else {
-    scale = (double)win_h / RISC_SCREEN_HEIGHT;
+    scale = (double)win_h / RISC_FRAMEBUFFER_HEIGHT;
   }
 
-  int w = (int)ceil(RISC_SCREEN_WIDTH * scale);
-  int h = (int)ceil(RISC_SCREEN_HEIGHT * scale);
+  int w = (int)ceil(RISC_FRAMEBUFFER_WIDTH * scale);
+  int h = (int)ceil(RISC_FRAMEBUFFER_HEIGHT * scale);
   *rect = (SDL_Rect){
     .w = w, .h = h,
     .x = (win_w - w) / 2,
@@ -235,53 +236,31 @@ static double scale_display(SDL_Window *window, SDL_Rect *rect) {
   return scale;
 }
 
-static uint32_t cache[RISC_SCREEN_WIDTH * RISC_SCREEN_HEIGHT / 32];
-static uint32_t buffer[RISC_SCREEN_WIDTH * RISC_SCREEN_HEIGHT];
+static void update_texture(struct RISC *risc, SDL_Texture *texture) {
+  struct Damage damage = risc_get_framebuffer_damage(risc);
+  if (damage.y1 <= damage.y2) {
+    uint32_t out[RISC_FRAMEBUFFER_WIDTH * RISC_FRAMEBUFFER_HEIGHT];
+    uint32_t *in = risc_get_framebuffer_ptr(risc);
+    uint32_t out_idx = 0;
 
-static void init_texture(SDL_Texture *texture) {
-  memset(cache, 0, sizeof(cache));
-  for (size_t i = 0; i < sizeof(buffer)/sizeof(buffer[0]); ++i) {
-    buffer[i] = BLACK;
-  }
-  SDL_UpdateTexture(texture, NULL, buffer, RISC_SCREEN_WIDTH * 4);
-}
-
-static void update_texture(uint32_t *framebuffer, SDL_Texture *texture) {
- // TODO: move dirty rectangle tracking into emulator core?
-  int dirty_y1 = RISC_SCREEN_HEIGHT;
-  int dirty_y2 = 0;
-  int dirty_x1 = RISC_SCREEN_WIDTH / 32;
-  int dirty_x2 = 0;
-
-  int idx = 0;
-  for (int line = RISC_SCREEN_HEIGHT - 1; line >= 0; line--) {
-    for (int col = 0; col < RISC_SCREEN_WIDTH / 32; col++) {
-      uint32_t pixels = framebuffer[idx];
-      if (pixels != cache[idx]) {
-        cache[idx] = pixels;
-        if (line < dirty_y1) dirty_y1 = line;
-        if (line > dirty_y2) dirty_y2 = line;
-        if (col < dirty_x1) dirty_x1 = col;
-        if (col > dirty_x2) dirty_x2 = col;
-
-        uint32_t *buf_ptr = &buffer[line * RISC_SCREEN_WIDTH + col * 32];
+    for (int line = damage.y2; line >= damage.y1; line--) {
+      int line_start = line * (RISC_FRAMEBUFFER_WIDTH / 32);
+      for (int col = damage.x1; col <= damage.x2; col++) {
+        uint32_t pixels = in[line_start + col];
         for (int b = 0; b < 32; b++) {
-          *buf_ptr++ = (pixels & 1) ? WHITE : BLACK;
+          out[out_idx] = (pixels & 1) ? WHITE : BLACK;
           pixels >>= 1;
+          out_idx++;
         }
       }
-      ++idx;
     }
-  }
 
-  if (dirty_y1 <= dirty_y2) {
     SDL_Rect rect = {
-      .x = dirty_x1 * 32,
-      .y = dirty_y1,
-      .w = (dirty_x2 - dirty_x1 + 1) * 32,
-      .h = dirty_y2 - dirty_y1 + 1,
+      .x = damage.x1 * 32,
+      .y = RISC_FRAMEBUFFER_HEIGHT - damage.y2 - 1,
+      .w = (damage.x2 - damage.x1 + 1) * 32,
+      .h = (damage.y2 - damage.y1 + 1)
     };
-    void *ptr = &buffer[dirty_y1 * RISC_SCREEN_WIDTH + dirty_x1 * 32];
-    SDL_UpdateTexture(texture, &rect, ptr, RISC_SCREEN_WIDTH * 4);
+    SDL_UpdateTexture(texture, &rect, out, rect.w * 4);
   }
 }
