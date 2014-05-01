@@ -79,6 +79,12 @@ void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi) {
   }
 }
 
+void risc_screen_size_hack(struct RISC *risc, int width, int height) {
+  risc->RAM[DisplayStart/4] = 0x53697A65; // magic value SIZE
+  risc->RAM[DisplayStart/4+1] = width;
+  risc->RAM[DisplayStart/4+2] = height;
+}
+
 void risc_reset(struct RISC *risc) {
   risc->PC = ROMStart/4;
 }

@@ -21,93 +21,106 @@ static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 
 
 static void update_texture(struct RISC *risc, SDL_Texture *texture);
-
+static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect);
 static int clamp(int x, int min, int max);
-static double scale_display(SDL_Window *window, SDL_Rect *rect);
+
 
 static void usage() {
-  fprintf(stderr, "Usage: risc [--fullscreen] disk-file-name\n");
+  fprintf(stderr, "Usage: risc [--fullscreen] [--size <width>x<height>] disk-file-name\n");
   exit(1);
+}
+
+static void sdl_error_if(bool error, const char *msg) {
+  if (error) {
+    fprintf(stderr, "%s: %s\n", msg, SDL_GetError());
+    exit(1);
+  }
+}
+
+static int best_display(const SDL_Rect *rect) {
+  int result = SDL_WINDOWPOS_UNDEFINED;
+  int display_cnt = SDL_GetNumVideoDisplays();
+  for (int i = 0; i < display_cnt; i++) {
+    SDL_Rect bounds;
+    SDL_GetDisplayBounds(i, &bounds);
+    if (bounds.h == rect->h && bounds.w >= rect->w) {
+      result = SDL_WINDOWPOS_UNDEFINED_DISPLAY(i);
+      if (bounds.w == rect->w)
+        break;  // exact match
+    }
+  }
+  return result;
 }
 
 int main (int argc, char *argv[]) {
   bool fullscreen = false;
+  SDL_Rect risc_rect = {
+    .w = RISC_FRAMEBUFFER_WIDTH,
+    .h = RISC_FRAMEBUFFER_HEIGHT
+  };
+
+  struct RISC *risc = risc_new();
+  risc_set_serial(risc, &pclink);
+  //risc_set_serial(risc, raw_serial_new(3, 4));
+
   while (argc > 1 && argv[1][0] == '-') {
     if (strcmp(argv[1], "--fullscreen") == 0) {
       fullscreen = true;
+    } else if (strcmp(argv[1], "--size") == 0 && argc > 2) {
+      if (sscanf(argv[2], "%dx%d", &risc_rect.w, &risc_rect.h) != 2 ||
+          clamp(risc_rect.h, 32, RISC_FRAMEBUFFER_HEIGHT) != risc_rect.h ||
+          clamp(risc_rect.w, 32, RISC_FRAMEBUFFER_WIDTH) != risc_rect.w) {
+        usage();
+      }
+      risc_rect.w &= ~31;
+      risc_rect.y = RISC_FRAMEBUFFER_HEIGHT - risc_rect.h;
+      risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
+      argc--; argv++;
     } else {
       usage();
     }
     argc--; argv++;
   }
+
   if (argc != 2) {
     usage();
   }
-
-  struct RISC *risc = risc_new();
-  risc_set_serial(risc, &pclink);
-  //risc_set_serial(risc, raw_serial_new(3, 4));
   risc_set_spi(risc, 1, disk_new(argv[1]));
 
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-    fprintf(stderr, "Unable to initialize SDL: %s\n", SDL_GetError());
-    return 1;
-  }
+  sdl_error_if(SDL_Init(SDL_INIT_VIDEO) != 0, "Unable to initialize SDL");
   atexit(SDL_Quit);
-
   SDL_EnableScreenSaver();
   SDL_ShowCursor(false);
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
 
-  int window_pos = SDL_WINDOWPOS_UNDEFINED;
   int window_flags = SDL_WINDOW_HIDDEN;
+  int window_pos = SDL_WINDOWPOS_UNDEFINED;
   if (fullscreen) {
     window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-    // Search for a 1024x768 display in multi-monitor configurations
-    int display_cnt = SDL_GetNumVideoDisplays();
-    for (int i = 0; i < display_cnt; i++) {
-      SDL_Rect bounds;
-      SDL_GetDisplayBounds(i, &bounds);
-      if (bounds.w >= RISC_FRAMEBUFFER_WIDTH && bounds.h == RISC_FRAMEBUFFER_HEIGHT) {
-        window_pos = SDL_WINDOWPOS_UNDEFINED_DISPLAY(i);
-        if (bounds.w == RISC_FRAMEBUFFER_WIDTH)
-          break;
-      }
-    }
+    window_pos = best_display(&risc_rect);
   }
-
   SDL_Window *window = SDL_CreateWindow("Project Oberon",
                                         window_pos, window_pos,
-                                        RISC_FRAMEBUFFER_WIDTH,
-                                        RISC_FRAMEBUFFER_HEIGHT,
+                                        risc_rect.w, risc_rect.h,
                                         window_flags);
-  if (window == NULL) {
-    fprintf(stderr, "Could not create window: %s\n", SDL_GetError());
-    return 1;
-  }
+  sdl_error_if(window == NULL, "Could not create window");
 
   SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
-  if (renderer == NULL) {
-    fprintf(stderr, "Could not create renderer: %s\n", SDL_GetError());
-    return 1;
-  }
+  sdl_error_if(renderer == NULL, "Could not create renderer");
 
   SDL_Texture *texture = SDL_CreateTexture(renderer,
                                            SDL_PIXELFORMAT_ARGB8888,
                                            SDL_TEXTUREACCESS_STREAMING,
                                            RISC_FRAMEBUFFER_WIDTH,
                                            RISC_FRAMEBUFFER_HEIGHT);
-  if (texture == NULL) {
-    fprintf(stderr, "Could not create texture: %s\n", SDL_GetError());
-    return 1;
-  }
+  sdl_error_if(texture == NULL, "Could not create texture");
 
   SDL_Rect display_rect;
-  double display_scale = scale_display(window, &display_rect);
+  double display_scale = scale_display(window, &risc_rect, &display_rect);
   update_texture(risc, texture);
   SDL_ShowWindow(window);
   SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, NULL, &display_rect);
+  SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
   SDL_RenderPresent(renderer);
 
   bool done = false;
@@ -124,7 +137,7 @@ int main (int argc, char *argv[]) {
 
         case SDL_WINDOWEVENT: {
           if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
-            display_scale = scale_display(window, &display_rect);
+            display_scale = scale_display(window, &risc_rect, &display_rect);
           }
           break;
         }
@@ -132,14 +145,14 @@ int main (int argc, char *argv[]) {
         case SDL_MOUSEMOTION: {
           int scaled_x = (int)round((event.motion.x - display_rect.x) / display_scale);
           int scaled_y = (int)round((event.motion.y - display_rect.y) / display_scale);
-          int x = clamp(scaled_x, 0, RISC_FRAMEBUFFER_WIDTH - 1);
-          int y = clamp(scaled_y, 0, RISC_FRAMEBUFFER_HEIGHT - 1);
+          int x = clamp(scaled_x, 0, risc_rect.w - 1);
+          int y = clamp(scaled_y, 0, risc_rect.h - 1);
           bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
           if (mouse_is_offscreen != mouse_was_offscreen) {
             SDL_ShowCursor(mouse_is_offscreen);
             mouse_was_offscreen = mouse_is_offscreen;
           }
-          risc_mouse_moved(risc, x, RISC_FRAMEBUFFER_HEIGHT - y - 1);
+          risc_mouse_moved(risc, x, risc_rect.h - y - 1);
           break;
         }
 
@@ -194,7 +207,7 @@ int main (int argc, char *argv[]) {
 
     update_texture(risc, texture);
     SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, &display_rect);
+    SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
     SDL_RenderPresent(renderer);
 
     uint32_t frame_end = SDL_GetTicks();
@@ -213,22 +226,22 @@ static int clamp(int x, int min, int max) {
   return x;
 }
 
-static double scale_display(SDL_Window *window, SDL_Rect *rect) {
+static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect) {
   int win_w, win_h;
   SDL_GetWindowSize(window, &win_w, &win_h);
-  double oberon_aspect = (double)RISC_FRAMEBUFFER_WIDTH / RISC_FRAMEBUFFER_HEIGHT;
+  double oberon_aspect = (double)risc_rect->w / risc_rect->h;
   double window_aspect = (double)win_w / win_h;
 
   double scale;
   if (oberon_aspect > window_aspect) {
-    scale = (double)win_w / RISC_FRAMEBUFFER_WIDTH;
+    scale = (double)win_w / risc_rect->w;
   } else {
-    scale = (double)win_h / RISC_FRAMEBUFFER_HEIGHT;
+    scale = (double)win_h / risc_rect->h;
   }
 
-  int w = (int)ceil(RISC_FRAMEBUFFER_WIDTH * scale);
-  int h = (int)ceil(RISC_FRAMEBUFFER_HEIGHT * scale);
-  *rect = (SDL_Rect){
+  int w = (int)ceil(risc_rect->w * scale);
+  int h = (int)ceil(risc_rect->h * scale);
+  *display_rect = (SDL_Rect){
     .w = w, .h = h,
     .x = (win_w - w) / 2,
     .y = (win_h - h) / 2
