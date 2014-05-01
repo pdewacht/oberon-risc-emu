@@ -28,15 +28,15 @@ static uint32_t clipboard_control_read(const struct RISC_Clipboard *clip) {
     if (data_len > UINT32_MAX) {
       reset();
     }
-  }
-  if (data_len > 0) {
-    state = GET;
-    r = (uint32_t)data_len;
-    // Decrease length if data contains CR/LF line endings
-    const char *p = data;
-    while ((p = strchr(p, '\r')) != NULL) {
-      if (*++p == '\n') {
-        r--;
+    else if (data_len > 0) {
+      state = GET;
+      r = (uint32_t)data_len;
+      // Decrease length if data contains CR/LF line endings
+      const char *p = data;
+      while ((p = strchr(p, '\r')) != NULL) {
+        if (*++p == '\n') {
+          r--;
+        }
       }
     }
   }
