@@ -3,6 +3,6 @@
 
 #include "risc-io.h"
 
-const struct RISC_Serial pclink;
+extern const struct RISC_Serial pclink;
 
 #endif  // PCLINK_H
