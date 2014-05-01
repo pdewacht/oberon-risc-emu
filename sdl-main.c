@@ -10,6 +10,7 @@
 #include "pclink.h"
 #include "raw-serial.h"
 #include "sdl-ps2.h"
+#include "sdl-clipboard.h"
 
 #define CPU_HZ 25000000
 #define FPS 60
@@ -62,6 +63,7 @@ int main (int argc, char *argv[]) {
   struct RISC *risc = risc_new();
   risc_set_serial(risc, &pclink);
   //risc_set_serial(risc, raw_serial_new(3, 4));
+  risc_set_clipboard(risc, &sdl_clipboard);
 
   while (argc > 1 && argv[1][0] == '-') {
     if (strcmp(argv[1], "--fullscreen") == 0) {

@@ -29,6 +29,7 @@ struct RISC {
   const struct RISC_Serial *serial;
   uint32_t spi_selected;
   const struct RISC_SPI *sd_card;
+  const struct RISC_Clipboard *clipboard;
 
   struct Damage damage;
 
@@ -77,6 +78,10 @@ void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi) {
   if (index == 1) {
     risc->sd_card = spi;
   }
+}
+
+void risc_set_clipboard(struct RISC *risc, const struct RISC_Clipboard *clipboard) {
+  risc->clipboard = clipboard;
 }
 
 void risc_screen_size_hack(struct RISC *risc, int width, int height) {
@@ -420,6 +425,20 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
       }
       return 0;
     }
+    case 32: {
+      // Clipboard control
+      if (risc->clipboard) {
+        return risc->clipboard->read_control(risc->clipboard);
+      }
+      return 0;
+    }
+    case 36: {
+      // Clipboard data
+      if (risc->clipboard) {
+        return risc->clipboard->read_data(risc->clipboard);
+      }
+      return 0;
+    }
     default: {
       return 0;
     }
@@ -463,6 +482,20 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
       // Bit 3:   netwerk enable
       // Other bits unused
       risc->spi_selected = value & 3;
+      break;
+    }
+    case 32: {
+      // Clipboard control
+      if (risc->clipboard) {
+        risc->clipboard->write_control(risc->clipboard, value);
+      }
+      break;
+    }
+    case 36: {
+      // Clipboard data
+      if (risc->clipboard) {
+        risc->clipboard->write_data(risc->clipboard, value);
+      }
       break;
     }
   }

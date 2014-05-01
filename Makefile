@@ -10,7 +10,9 @@ RISC_SOURCE = \
 	risc-fp.c risc-fp.h \
 	disk.c disk.h \
 	pclink.c pclink.h \
-	raw-serial.c raw-serial.h
+	raw-serial.c raw-serial.h \
+	sdl-clipboard.c sdl-clipboard.h
+
 
 risc: $(RISC_SOURCE) 
 	$(CC) -o $@ $(filter %.c, $^) $(RISC_CFLAGS)
