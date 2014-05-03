@@ -28,7 +28,7 @@ struct RISC {
 
   const struct RISC_Serial *serial;
   uint32_t spi_selected;
-  const struct RISC_SPI *sd_card;
+  const struct RISC_SPI *spi[4];
   const struct RISC_Clipboard *clipboard;
 
   struct Damage damage;
@@ -75,8 +75,8 @@ void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial) {
 }
 
 void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi) {
-  if (index == 1) {
-    risc->sd_card = spi;
+  if (index == 1 || index == 2) {
+    risc->spi[index] = spi;
   }
 }
 
@@ -394,8 +394,9 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
     }
     case 16: {
       // SPI data
-      if (risc->spi_selected == 1 && risc->sd_card) {
-        return risc->sd_card->read_data(risc->sd_card);
+      const struct RISC_SPI *spi = risc->spi[risc->spi_selected];
+      if (spi != NULL) {
+        return spi->read_data(spi);
       }
       return 255;
     }
@@ -470,8 +471,9 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
     }
     case 16: {
       // SPI write
-      if (risc->spi_selected == 1 && risc->sd_card) {
-        risc->sd_card->write_data(risc->sd_card, value);
+      const struct RISC_SPI *spi = risc->spi[risc->spi_selected];
+      if (spi != NULL) {
+        spi->write_data(spi, value);
       }
       break;
     }
