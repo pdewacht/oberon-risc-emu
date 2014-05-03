@@ -8,42 +8,57 @@ Requirements: a C99 compiler (e.g. [GCC](http://gcc.gnu.org/),
 [clang](http://clang.llvm.org/)) and [SDL2](http://libsdl.org/).
 
 A suitable disk image can be downloaded from http://projectoberon.com/ (in
-S3RISCinstall.zip). **Warning**: Images downloaded before 2014-03-29 have
-broken floating point.
+S3RISCinstall.zip).
 
-Current emulation status
-------------------------
 
-* CPU
-  * No known bugs.
+Command line options
+--------------------
 
-* Keyboard and mouse
-  * OK. Note that Oberon assumes you have a US keyboard layout and
-    a three button mouse.
-  * The left alt key can now be used to emulate a middle click.
+Usage: `risc [options] disk-image.img`
 
-* Display
-  * OK. You can adjust the colors by editing `sdl-main.c`.
-  * Use F11 to toggle full screen display.
+* `--fullscreen` Start the emulator in fullscreen mode.
+* `--size <width>x<height>` Reduce the standard resolution of 1024x768.
+  Useful on netbooks. This needs a change to the Oberon system, see
+  [screen-size.patch](Oberon/screen-size.patch).
+* `--serial-fd <fd>` Send serial I/O to file descriptor fd (input) and
+  fd+1 (output). (You probably won't need this.)
 
-* SD-Card
-  * Very inaccurate, but good enough for Oberon. If you're going to
-    hack the SD card routines, you'll need to use real hardware.
 
-* RS-232
-  * Implements PCLink protocol to send/receive single files at a time
-    e.g. to receive Test.Mod into Oberon, run PCLink1.Start,
-    then in host risc current directory, `echo Test.Mod > PCLink.REC`
-  * Thanks to Paul Reed
+Keyboard and mouse
+------------------
 
-* Network
-  * Not implemented.
+The Oberon system assumes you have a US keyboard and a three button mouse.
+You can use the left alt key to emulate a middle click.
 
-* LEDs
-  * Printed on stdout.
+The following keys are available:
+* `Alt-F4` Quit the emulator.
+* `F11` or `Shift-Command-F` Toggle fullscreen mode.
+* `F12` Soft-reset the Oberon machine.
 
-* Reset button
-  * Press F12 to abort if you get stuck in an infinite loop.
+
+Transferring files
+------------------
+
+First start the PCLink1 task by middle-clicking on the PCLink1.Run command.
+Transfer files using the pcreceive.sh and pcsend.sh scripts.
+
+
+Clipboard integration
+---------------------
+
+Transfer and compile the Clipboard.Mod driver. This makes these commands
+available:
+
+* `Clipboard.Paste`
+* `Clipboard.CopySelection`
+* `Clipboard.CopyViewer`
+
+
+Known issues
+------------
+
+* The wireless network interface is not emulated.
+* Proper documentation is needed.
 
 
 Copyright
