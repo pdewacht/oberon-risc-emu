@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <getopt.h>
 #include <SDL.h>
 #include "risc.h"
 #include "disk.h"
@@ -53,41 +54,55 @@ static int best_display(const SDL_Rect *rect) {
   return result;
 }
 
+static struct option long_options[] = {
+  { "fullscreen", no_argument,       NULL, 'f' },
+  { "size",       required_argument, NULL, 's' },
+  { "serial-fd",  required_argument, NULL, 'F' },
+  { NULL }
+};
+
 int main (int argc, char *argv[]) {
+  struct RISC *risc = risc_new();
+  risc_set_serial(risc, &pclink);
+  risc_set_clipboard(risc, &sdl_clipboard);
+
   bool fullscreen = false;
   SDL_Rect risc_rect = {
     .w = RISC_FRAMEBUFFER_WIDTH,
     .h = RISC_FRAMEBUFFER_HEIGHT
   };
 
-  struct RISC *risc = risc_new();
-  risc_set_serial(risc, &pclink);
-  //risc_set_serial(risc, raw_serial_new(3, 4));
-  risc_set_clipboard(risc, &sdl_clipboard);
-
-  while (argc > 1 && argv[1][0] == '-') {
-    if (strcmp(argv[1], "--fullscreen") == 0) {
-      fullscreen = true;
-    } else if (strcmp(argv[1], "--size") == 0 && argc > 2) {
-      if (sscanf(argv[2], "%dx%d", &risc_rect.w, &risc_rect.h) != 2 ||
-          clamp(risc_rect.h, 32, RISC_FRAMEBUFFER_HEIGHT) != risc_rect.h ||
-          clamp(risc_rect.w, 32, RISC_FRAMEBUFFER_WIDTH) != risc_rect.w) {
+  int opt;
+  while ((opt = getopt_long(argc, argv, "fS:F:", long_options, NULL)) != -1) {
+    switch (opt) {
+      case 'f': {
+        fullscreen = true;
+        break;
+      }
+      case 's': {
+        int w, h;
+        if (sscanf(optarg, "%dx%d", &w, &h) != 2) {
+          usage();
+        }
+        risc_rect.w = clamp(w, 32, RISC_FRAMEBUFFER_WIDTH) & ~31;
+        risc_rect.h = clamp(h, 32, RISC_FRAMEBUFFER_HEIGHT);
+        risc_rect.y = RISC_FRAMEBUFFER_HEIGHT - risc_rect.h;
+        risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
+        break;
+      }
+      case 'F': {
+        risc_set_serial(risc, raw_serial_new(atoi(optarg), atoi(optarg) + 1));
+        break;
+      }
+      default: {
         usage();
       }
-      risc_rect.w &= ~31;
-      risc_rect.y = RISC_FRAMEBUFFER_HEIGHT - risc_rect.h;
-      risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
-      argc--; argv++;
-    } else {
-      usage();
     }
-    argc--; argv++;
   }
-
-  if (argc != 2) {
+  if (optind != argc - 1) {
     usage();
   }
-  risc_set_spi(risc, 1, disk_new(argv[1]));
+  risc_set_spi(risc, 1, disk_new(argv[optind]));
 
   sdl_error_if(SDL_Init(SDL_INIT_VIDEO) != 0, "Unable to initialize SDL");
   atexit(SDL_Quit);
