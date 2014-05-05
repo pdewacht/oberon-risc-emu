@@ -1,3 +1,14 @@
+#ifdef _WIN32
+
+#include <stdio.h>
+
+struct RISC_Serial *raw_serial_new(int fd_in, int fd_out) {
+  fprintf(stderr, "The --serial-fd feature is not available on Windows.\n");
+  return NULL;
+}
+
+#else  // _WIN32
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -73,3 +84,5 @@ struct RISC_Serial *raw_serial_new(int fd_in, int fd_out) {
   };
   return &s->serial;
 }
+
+#endif  // _WIN32
