@@ -426,14 +426,14 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
       }
       return 0;
     }
-    case 32: {
+    case 40: {
       // Clipboard control
       if (risc->clipboard) {
         return risc->clipboard->read_control(risc->clipboard);
       }
       return 0;
     }
-    case 36: {
+    case 44: {
       // Clipboard data
       if (risc->clipboard) {
         return risc->clipboard->read_data(risc->clipboard);
@@ -486,14 +486,14 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
       risc->spi_selected = value & 3;
       break;
     }
-    case 32: {
+    case 40: {
       // Clipboard control
       if (risc->clipboard) {
         risc->clipboard->write_control(risc->clipboard, value);
       }
       break;
     }
-    case 36: {
+    case 44: {
       // Clipboard data
       if (risc->clipboard) {
         risc->clipboard->write_data(risc->clipboard, value);
