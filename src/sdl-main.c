@@ -266,10 +266,13 @@ static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_R
   return scale;
 }
 
+// Only used in update_texture(), but some systems complain if you
+// allocate three megabyte on the stack.
+static uint32_t pixel_buf[RISC_FRAMEBUFFER_WIDTH * RISC_FRAMEBUFFER_HEIGHT];
+
 static void update_texture(struct RISC *risc, SDL_Texture *texture) {
   struct Damage damage = risc_get_framebuffer_damage(risc);
   if (damage.y1 <= damage.y2) {
-    uint32_t out[RISC_FRAMEBUFFER_WIDTH * RISC_FRAMEBUFFER_HEIGHT];
     uint32_t *in = risc_get_framebuffer_ptr(risc);
     uint32_t out_idx = 0;
 
@@ -278,7 +281,7 @@ static void update_texture(struct RISC *risc, SDL_Texture *texture) {
       for (int col = damage.x1; col <= damage.x2; col++) {
         uint32_t pixels = in[line_start + col];
         for (int b = 0; b < 32; b++) {
-          out[out_idx] = (pixels & 1) ? WHITE : BLACK;
+          pixel_buf[out_idx] = (pixels & 1) ? WHITE : BLACK;
           pixels >>= 1;
           out_idx++;
         }
@@ -291,6 +294,6 @@ static void update_texture(struct RISC *risc, SDL_Texture *texture) {
       .w = (damage.x2 - damage.x1 + 1) * 32,
       .h = (damage.y2 - damage.y1 + 1)
     };
-    SDL_UpdateTexture(texture, &rect, out, rect.w * 4);
+    SDL_UpdateTexture(texture, &rect, pixel_buf, rect.w * 4);
   }
 }
