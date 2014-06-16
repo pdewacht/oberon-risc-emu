@@ -6,12 +6,12 @@
 #include "risc.h"
 #include "risc-fp.h"
 
-#define MemSize      0x100000
+#define MemSize      0x00100000
 #define MemWords     (MemSize / 4)
-#define ROMStart     0x0FE000
+#define ROMStart     0xFFFFF800
 #define ROMWords     512
-#define DisplayStart 0x0E7F00
-#define IOStart      0x0FFFC0
+#define DisplayStart 0x000E7F00
+#define IOStart      0xFFFFFFC0
 
 struct RISC {
   uint32_t PC;
@@ -107,10 +107,14 @@ void risc_run(struct RISC *risc, int cycles) {
 
 static void risc_single_step(struct RISC *risc) {
   uint32_t ir;
-  if (risc->PC < ROMStart/4) {
+  if (risc->PC < MemWords) {
     ir = risc->RAM[risc->PC];
-  } else {
+  } else if (risc->PC >= ROMStart/4 && risc->PC < ROMStart/4 + ROMWords) {
     ir = risc->ROM[risc->PC - ROMStart/4];
+  } else {
+    fprintf(stderr, "Branched into the void (PC=0x%08X), resetting...\n", risc->PC);
+    risc_reset(risc);
+    return;
   }
   risc->PC++;
 
@@ -144,7 +148,7 @@ static void risc_single_step(struct RISC *risc) {
         } else if ((ir & qbit) != 0) {
           a_val = c_val << 16;
         } else if ((ir & vbit) != 0) {
-          a_val = 0xD0 |   // FIXME ???
+          a_val = 0xD0 |   // ???
             (risc->N * 0x80000000U) |
             (risc->Z * 0x40000000U) |
             (risc->C * 0x20000000U) |
@@ -252,9 +256,10 @@ static void risc_single_step(struct RISC *risc) {
     // Memory instructions
     uint32_t a = (ir & 0x0F000000) >> 24;
     uint32_t b = (ir & 0x00F00000) >> 20;
-    uint32_t off = ir & 0x000FFFFF;
+    int32_t off = ir & 0x000FFFFF;
+    off = off << 12 >> 12;  // sign-extend
 
-    uint32_t address = (risc->R[b] + off) % MemSize;
+    uint32_t address = risc->R[b] + off;
     if ((ir & ubit) == 0) {
       uint32_t a_val;
       if ((ir & vbit) == 0) {
@@ -299,10 +304,11 @@ static void risc_single_step(struct RISC *risc) {
       }
       if ((ir & ubit) == 0) {
         uint32_t c = ir & 0x0000000F;
-        risc->PC = (risc->R[c] / 4) % MemWords;
+        risc->PC = risc->R[c] / 4;
       } else {
-        uint32_t off = ir & 0x00FFFFFF;
-        risc->PC = (risc->PC + off) % MemWords;
+        int32_t off = ir & 0x00FFFFFF;
+        off = off << 8 >> 8;  // sign-extend
+        risc->PC = risc->PC + off;
       }
     }
   }
@@ -315,7 +321,7 @@ static void risc_set_register(struct RISC *risc, int reg, uint32_t value) {
 }
 
 static uint32_t risc_load_word(struct RISC *risc, uint32_t address) {
-  if (address < IOStart) {
+  if (address < MemSize) {
     return risc->RAM[address/4];
   } else {
     return risc_load_io(risc, address);
@@ -347,7 +353,7 @@ static void risc_update_damage(struct RISC *risc, int w) {
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value) {
   if (address < DisplayStart) {
     risc->RAM[address/4] = value;
-  } else if (address < IOStart) {
+  } else if (address < MemSize) {
     risc->RAM[address/4] = value;
     risc_update_damage(risc, address/4 - DisplayStart/4);
   } else {
@@ -356,7 +362,7 @@ static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value)
 }
 
 static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) {
-  if (address < IOStart) {
+  if (address < MemSize) {
     uint32_t w = risc_load_word(risc, address);
     uint32_t shift = (address & 3) * 8;
     w &= ~(0xFFu << shift);
