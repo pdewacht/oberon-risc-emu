@@ -17,9 +17,9 @@ Command line options
 Usage: `risc [options] disk-image.img`
 
 * `--fullscreen` Start the emulator in fullscreen mode.
-* `--size <width>x<height>` Reduce the standard resolution of 1024x768.
-  Useful on netbooks. This needs a change to the Oberon system, see
-  [screen-size.patch](Oberon/screen-size.patch).
+* `--size <width>x<height>` Use a non-standard window size.
+  This requires modified Display and Input modules, see
+  [the Oberon directory](Oberon/).
 * `--serial-fd <fd>` Send serial I/O to file descriptor fd (input) and
   fd+1 (output). (You probably won't need this.)
 

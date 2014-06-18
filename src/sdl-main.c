@@ -21,8 +21,10 @@ static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 //static uint32_t BLACK = 0x0000FF, WHITE = 0xFFFF00;
 //static uint32_t BLACK = 0x000000, WHITE = 0x00FF00;
 
+#define MAX_HEIGHT 2048
+#define MAX_WIDTH  2048
 
-static void update_texture(struct RISC *risc, SDL_Texture *texture);
+static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect);
 static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect);
 static int clamp(int x, int min, int max);
 
@@ -84,9 +86,8 @@ int main (int argc, char *argv[]) {
         if (sscanf(optarg, "%dx%d", &w, &h) != 2) {
           usage();
         }
-        risc_rect.w = clamp(w, 32, RISC_FRAMEBUFFER_WIDTH) & ~31;
-        risc_rect.h = clamp(h, 32, RISC_FRAMEBUFFER_HEIGHT);
-        risc_rect.y = RISC_FRAMEBUFFER_HEIGHT - risc_rect.h;
+        risc_rect.w = clamp(w, 32, MAX_WIDTH) & ~31;
+        risc_rect.h = clamp(h, 32, MAX_HEIGHT);
         risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
         break;
       }
@@ -128,13 +129,13 @@ int main (int argc, char *argv[]) {
   SDL_Texture *texture = SDL_CreateTexture(renderer,
                                            SDL_PIXELFORMAT_ARGB8888,
                                            SDL_TEXTUREACCESS_STREAMING,
-                                           RISC_FRAMEBUFFER_WIDTH,
-                                           RISC_FRAMEBUFFER_HEIGHT);
+                                           risc_rect.w,
+                                           risc_rect.h);
   sdl_error_if(texture == NULL, "Could not create texture");
 
   SDL_Rect display_rect;
   double display_scale = scale_display(window, &risc_rect, &display_rect);
-  update_texture(risc, texture);
+  update_texture(risc, texture, &risc_rect);
   SDL_ShowWindow(window);
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
@@ -222,7 +223,7 @@ int main (int argc, char *argv[]) {
     risc_set_time(risc, frame_start);
     risc_run(risc, CPU_HZ / FPS);
 
-    update_texture(risc, texture);
+    update_texture(risc, texture, &risc_rect);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
     SDL_RenderPresent(renderer);
@@ -268,16 +269,16 @@ static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_R
 
 // Only used in update_texture(), but some systems complain if you
 // allocate three megabyte on the stack.
-static uint32_t pixel_buf[RISC_FRAMEBUFFER_WIDTH * RISC_FRAMEBUFFER_HEIGHT];
+static uint32_t pixel_buf[MAX_WIDTH * MAX_HEIGHT];
 
-static void update_texture(struct RISC *risc, SDL_Texture *texture) {
+static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect) {
   struct Damage damage = risc_get_framebuffer_damage(risc);
   if (damage.y1 <= damage.y2) {
     uint32_t *in = risc_get_framebuffer_ptr(risc);
     uint32_t out_idx = 0;
 
     for (int line = damage.y2; line >= damage.y1; line--) {
-      int line_start = line * (RISC_FRAMEBUFFER_WIDTH / 32);
+      int line_start = line * (risc_rect->w / 32);
       for (int col = damage.x1; col <= damage.x2; col++) {
         uint32_t pixels = in[line_start + col];
         for (int b = 0; b < 32; b++) {
@@ -290,7 +291,7 @@ static void update_texture(struct RISC *risc, SDL_Texture *texture) {
 
     SDL_Rect rect = {
       .x = damage.x1 * 32,
-      .y = RISC_FRAMEBUFFER_HEIGHT - damage.y2 - 1,
+      .y = risc_rect->h - damage.y2 - 1,
       .w = (damage.x2 - damage.x1 + 1) * 32,
       .h = (damage.y2 - damage.y1 + 1)
     };

@@ -6,12 +6,27 @@
 #include "risc.h"
 #include "risc-fp.h"
 
-#define MemSize      0x00100000
+
+// Our memory layout is slightly different from the FPGA implementation.
+// The FPGA uses a 20-bit address bus and thus ignores the top 12 bits.
+// We use all 32 bits. This allows us to have more than 1 megabyte of
+// RAM.
+//
+// We add an extra half megabyte. This is used to allow for framebuffers
+// larger than the normal 1024x768. A modified Dispay.Mod and Input.Mod
+// is needed to use this feature, this is included in the Oberon
+// directory.
+//
+// As we don't change DisplayStart, this extra memory is not useful for a
+// larger heap.
+
+#define MemSize      0x00180000
 #define MemWords     (MemSize / 4)
 #define ROMStart     0xFFFFF800
 #define ROMWords     512
 #define DisplayStart 0x000E7F00
 #define IOStart      0xFFFFFFC0
+
 
 struct RISC {
   uint32_t PC;
@@ -31,6 +46,8 @@ struct RISC {
   const struct RISC_SPI *spi[4];
   const struct RISC_Clipboard *clipboard;
 
+  int fb_width;   // words
+  int fb_height;  // lines
   struct Damage damage;
 
   uint32_t RAM[MemWords];
@@ -61,11 +78,7 @@ static const uint32_t bootloader[ROMWords] = {
 struct RISC *risc_new() {
   struct RISC *risc = calloc(1, sizeof(*risc));
   memcpy(risc->ROM, bootloader, sizeof(risc->ROM));
-  risc->damage = (struct Damage){
-    .x1 = 0, .y1 = 0,
-    .x2 = RISC_FRAMEBUFFER_WIDTH/32 - 1,
-    .y2 = RISC_FRAMEBUFFER_HEIGHT - 1
-  };
+  risc_screen_size_hack(risc, RISC_FRAMEBUFFER_WIDTH, RISC_FRAMEBUFFER_HEIGHT);
   risc_reset(risc);
   return risc;
 }
@@ -85,7 +98,16 @@ void risc_set_clipboard(struct RISC *risc, const struct RISC_Clipboard *clipboar
 }
 
 void risc_screen_size_hack(struct RISC *risc, int width, int height) {
-  risc->RAM[DisplayStart/4] = 0x53697A65; // magic value SIZE
+  risc->fb_width = width / 32;
+  risc->fb_height = height;
+  risc->damage = (struct Damage){
+    .x1 = 0,
+    .y1 = 0,
+    .x2 = risc->fb_width - 1,
+    .y2 = risc->fb_height - 1
+  };
+
+  risc->RAM[DisplayStart/4] = 0x53697A65;  // magic value 'SIZE'
   risc->RAM[DisplayStart/4+1] = width;
   risc->RAM[DisplayStart/4+2] = height;
 }
@@ -334,19 +356,21 @@ static uint8_t risc_load_byte(struct RISC *risc, uint32_t address) {
 }
 
 static void risc_update_damage(struct RISC *risc, int w) {
-  int row = w / (RISC_FRAMEBUFFER_WIDTH / 32);
-  int col = w % (RISC_FRAMEBUFFER_WIDTH / 32);
-  if (col < risc->damage.x1) {
-    risc->damage.x1 = col;
-  }
-  if (col > risc->damage.x2) {
-    risc->damage.x2 = col;
-  }
-  if (row < risc->damage.y1) {
-    risc->damage.y1 = row;
-  }
-  if (row > risc->damage.y2) {
-    risc->damage.y2 = row;
+  int row = w / risc->fb_width;
+  int col = w % risc->fb_width;
+  if (row < risc->fb_height) {
+    if (col < risc->damage.x1) {
+      risc->damage.x1 = col;
+    }
+    if (col > risc->damage.x2) {
+      risc->damage.x2 = col;
+    }
+    if (row < risc->damage.y1) {
+      risc->damage.y1 = row;
+    }
+    if (row > risc->damage.y2) {
+      risc->damage.y2 = row;
+    }
   }
 }
 
@@ -548,9 +572,9 @@ uint32_t *risc_get_framebuffer_ptr(struct RISC *risc) {
 struct Damage risc_get_framebuffer_damage(struct RISC *risc) {
   struct Damage dmg = risc->damage;
   risc->damage = (struct Damage){
-    .x1 = RISC_FRAMEBUFFER_WIDTH/32,
+    .x1 = risc->fb_width,
     .x2 = 0,
-    .y1 = RISC_FRAMEBUFFER_HEIGHT,
+    .y1 = risc->fb_height,
     .y2 = 0
   };
   return dmg;

@@ -1,0 +1,12 @@
+--- a/Input.Mod
++++ b/Input.Mod
+@@ -46,7 +46,8 @@
+     VAR w: INTEGER;
+   BEGIN SYSTEM.GET(msAdr, w);
+     keys := SYSTEM.VAL(SET, w DIV 1000000H MOD 8);
+-    x := w MOD 400H; y := (w DIV 1000H) MOD 400H;
++    x := w MOD 1000H; y := (w DIV 1000H) MOD 1000H;
++    IF x >= MW THEN x := MW-1 END;
+     IF y >= MH THEN y := MH-1 END
+   END Mouse;
+ 

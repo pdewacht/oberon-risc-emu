@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "risc-io.h"
 
+// This is the standard size of the framebuffer, can be overridden.
 #define RISC_FRAMEBUFFER_WIDTH 1024
 #define RISC_FRAMEBUFFER_HEIGHT 768
 
