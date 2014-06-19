@@ -279,7 +279,7 @@ static void risc_single_step(struct RISC *risc) {
     uint32_t a = (ir & 0x0F000000) >> 24;
     uint32_t b = (ir & 0x00F00000) >> 20;
     int32_t off = ir & 0x000FFFFF;
-    off = off << 12 >> 12;  // sign-extend
+    off = (off ^ 0x00080000) - 0x00080000;  // sign-extend
 
     uint32_t address = risc->R[b] + off;
     if ((ir & ubit) == 0) {
@@ -329,7 +329,7 @@ static void risc_single_step(struct RISC *risc) {
         risc->PC = risc->R[c] / 4;
       } else {
         int32_t off = ir & 0x00FFFFFF;
-        off = off << 8 >> 8;  // sign-extend
+        off = (off ^ 0x00800000) - 0x00800000;  // sign-extend
         risc->PC = risc->PC + off;
       }
     }
