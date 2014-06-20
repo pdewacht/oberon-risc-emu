@@ -107,7 +107,7 @@ void risc_screen_size_hack(struct RISC *risc, int width, int height) {
     .y2 = risc->fb_height - 1
   };
 
-  risc->RAM[DisplayStart/4] = 0x53697A65;  // magic value 'SIZE'
+  risc->RAM[DisplayStart/4] = 0x53697A66;  // magic value 'SIZE'+1
   risc->RAM[DisplayStart/4+1] = width;
   risc->RAM[DisplayStart/4+2] = height;
 }
