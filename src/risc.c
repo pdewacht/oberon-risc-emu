@@ -210,8 +210,8 @@ static void risc_single_step(struct RISC *risc) {
       }
       case ADD: {
         a_val = b_val + c_val;
-        if ((ir & ubit) != 0 && risc->C) {
-          a_val++;
+        if ((ir & ubit) != 0) {
+          a_val += risc->C;
         }
         risc->C = a_val < b_val;
         risc->V = ((a_val ^ c_val) & (a_val ^ b_val)) >> 31;
@@ -219,8 +219,8 @@ static void risc_single_step(struct RISC *risc) {
       }
       case SUB: {
         a_val = b_val - c_val;
-        if ((ir & ubit) != 0 && risc->C) {
-          a_val--;
+        if ((ir & ubit) != 0) {
+          a_val -= risc->C;
         }
         risc->C = a_val > b_val;
         risc->V = ((b_val ^ c_val) & (a_val ^ b_val)) >> 31;
@@ -300,24 +300,16 @@ static void risc_single_step(struct RISC *risc) {
   }
   else {
     // Branch instructions
-    bool t;
-    switch ((ir >> 24) & 15) {
-      case 0: t = risc->N; break;
-      case 1: t = risc->Z; break;
-      case 2: t = risc->C; break;
-      case 3: t = risc->V; break;
-      case 4: t = risc->C || risc->Z; break;
-      case 5: t = risc->N != risc->V; break;
-      case 6: t = (risc->N != risc->V) || risc->Z; break;
-      case 7: t = true; break;
-      case 8: t = !risc->N; break;
-      case 9: t = !risc->Z; break;
-      case 10: t = !risc->C; break;
-      case 11: t = !risc->V; break;
-      case 12: t = !(risc->C || risc->Z); break;
-      case 13: t = !(risc->N != risc->V); break;
-      case 14: t = !((risc->N != risc->V) || risc->Z); break;
-      case 15: t = false; break;
+    bool t = (ir >> 27) & 1;
+    switch ((ir >> 24) & 7) {
+      case 0: t ^= risc->N; break;
+      case 1: t ^= risc->Z; break;
+      case 2: t ^= risc->C; break;
+      case 3: t ^= risc->V; break;
+      case 4: t ^= risc->C | risc->Z; break;
+      case 5: t ^= risc->N ^ risc->V; break;
+      case 6: t ^= (risc->N ^ risc->V) | risc->Z; break;
+      case 7: t ^= true; break;
       default: abort();  // unreachable
     }
     if (t) {
