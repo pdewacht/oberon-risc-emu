@@ -141,15 +141,14 @@ class Parser():
         print("static void cycle() {")
         for n, expr in self.registers.items():
             size = self.names[n].size
-            print("  uint32_t %s_tmp = (%s) & %s;" % (n, expr.value, self.mask(size)))
+            print("  %s %s_tmp = (%s) & %s;" % (
+                self.get_type(size), n, expr.value, self.mask(size)))
         for n, expr in self.registers.items():
             print("  %s = %s_tmp;" % (n, n))
         print("}")
 
     def get_type(self, size):
-        if size == 1:
-            return 'bool'
-        return 'uint32_t'
+        return 'bool' if size == 1 else 'uint64_t'
 
     def declare_input(self, name, size):
         type = self.get_type(size)
@@ -412,7 +411,7 @@ class Parser():
 
     def mask(self, n):
         if n is None: n = 32
-        return '0x%XU' % ((1<<n)-1,)
+        return '0x%XULL' % ((1<<n)-1,)
 
     def size(self, a, b):
         if a.size is None: return b.size
