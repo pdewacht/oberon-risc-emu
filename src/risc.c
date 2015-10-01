@@ -243,11 +243,16 @@ static void risc_single_step(struct RISC *risc) {
           a_val = 0xDEADBEEF;
           risc->H = 0xDEADBEEF;
         } else {
-          a_val = (int32_t)b_val / (int32_t)c_val;
-          risc->H = (int32_t)b_val % (int32_t)c_val;
-          if ((int32_t)risc->H < 0) {
-            a_val--;
-            risc->H += c_val;
+          if ((ir & ubit) == 0) {
+            a_val = (int32_t)b_val / (int32_t)c_val;
+            risc->H = (int32_t)b_val % (int32_t)c_val;
+            if ((int32_t)risc->H < 0) {
+              a_val--;
+              risc->H += c_val;
+            }
+          } else {
+            a_val = b_val / c_val;
+            risc->H = b_val % c_val;
           }
         }
         break;
