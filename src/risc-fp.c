@@ -99,15 +99,15 @@ uint32_t fp_div(uint32_t x, uint32_t y) {
 
   uint32_t xm = (x & 0x7FFFFF) | 0x800000;
   uint32_t ym = (y & 0x7FFFFF) | 0x800000;
-  uint32_t q1 = (uint32_t)(xm * (1ULL << 23) / ym);
+  uint32_t q1 = (uint32_t)(xm * (1ULL << 24) / ym);
 
   uint32_t e1 = (xe - ye) + 126;
   uint32_t q2;
-  if ((q1 & 0x800000) != 0) {
+  if ((q1 & (1 << 24)) != 0) {
     e1++;
-    q2 = q1 & 0x7FFFFF;
+    q2 = (q1 >> 1) & 0x7FFFFF;
   } else {
-    q2 = (q1 << 1) & 0x7FFFFF;
+    q2 = q1 & 0x7FFFFF;
   }
 
   if (xe == 0) {

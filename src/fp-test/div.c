@@ -23,7 +23,7 @@ static uint32_t v_div(uint32_t in_x, uint32_t in_y) {
 
 
 int main() {
-  int count = numbers_cnt * numbers_cnt;
+  int count = 0;
   int errors = 0;
   for (int i = 0; i < numbers_cnt; i++) {
     for (int j = 0; j < numbers_cnt; j++) {
@@ -33,6 +33,7 @@ int main() {
         printf("div: %08x %08x => v %08x | fp %08x\n", numbers[i], numbers[j], v, fp);
       }
       errors += fp != v;
+      count += 1;
     }
     if ((i % 500) == 0) {
       int p = count * 100 / numbers_cnt / numbers_cnt;
