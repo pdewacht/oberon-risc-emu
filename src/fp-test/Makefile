@@ -1,6 +1,6 @@
 CFLAGS = -Wall -Wextra -O3 -march=native
 
-TESTS = add flr flt mul div
+TESTS = add flr flt mul div idiv
 
 VPATH = $(VERILOG)
 
@@ -19,6 +19,7 @@ flr: flr.c $(RISC_FP) numbers.inc FPAdder.inc
 flt: flt.c $(RISC_FP) numbers.inc FPAdder.inc
 mul: mul.c $(RISC_FP) numbers.inc FPMultiplier.inc
 div: div.c $(RISC_FP) numbers.inc FPDivider.inc
+idiv: idiv.c $(RISC_FP) numbers.inc Divider.inc
 
 numbers.inc: numbers.py
 	python3 $< > $@

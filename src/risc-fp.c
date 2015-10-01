@@ -123,3 +123,28 @@ uint32_t fp_div(uint32_t x, uint32_t y) {
   }
 }
 
+struct idiv idiv(uint32_t x, uint32_t y, bool signed_div) {
+  bool sign = ((int32_t)x < 0) & signed_div;
+  uint32_t x0 = sign ? -x : x;
+
+  uint64_t RQ = x0;
+  for (int S = 0; S < 32; ++S) {
+    uint32_t w0 = (uint32_t)(RQ >> 31);
+    uint32_t w1 = w0 - y;
+    if ((int32_t)w1 < 0) {
+      RQ = ((uint64_t)w0 << 32) | ((RQ & 0x7FFFFFFFU) << 1);
+    } else {
+      RQ = ((uint64_t)w1 << 32) | ((RQ & 0x7FFFFFFFU) << 1) | 1;
+    }
+  }
+
+  struct idiv d = { (uint32_t)RQ, (uint32_t)(RQ >> 32) };
+  if (sign) {
+    d.quot = -d.quot;
+    if (d.rem) {
+      d.quot -= 1;
+      d.rem = y - d.rem;
+    }
+  }
+  return d;
+}
