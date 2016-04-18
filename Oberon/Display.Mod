@@ -172,7 +172,7 @@ MODULE Display;  (*NW 5.11.2013*)
       a1 := al;
       FOR i := 1 TO h DO
         SYSTEM.GET(a1, pix); SYSTEM.GET(pta0, ptw); SYSTEM.PUT(a1, (pix - mid) + (pix/ptw * mid)); INC(pta0, 4);
-        IF pta0 = pta1 THEN pta0 := patadr+4 END
+        IF pta0 = pta1 THEN pta0 := patadr+4 END;
         INC(a1, Span);
       END
     ELSE
