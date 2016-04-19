@@ -71,7 +71,10 @@ They also have a few tweaks for better integration with the emulator
   documented below.
 
 The source code for these modifications can be found in the
-[Mods/](Mods/) directory.
+[Mods/](Mods/) directory. The tools to generate the disk image exist
+in the [Project Norebo] repository.
+
+[Project Norebo]: https://github.com/pdewacht/project-norebo
 
 
 ## Command line options
