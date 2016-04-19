@@ -8,7 +8,7 @@ newcomers to the Oberon family of operating systems, the document
 [Using Oberon]: https://www.inf.ethz.ch/personal/wirth/ProjectOberon/UsingOberon.pdf
 [Project Oberon section]: https://www.inf.ethz.ch/personal/wirth/ProjectOberon/index.html
 
-![Screenshot][po2013.png]
+![Screenshot](po2013.png)
 
 ## Building
 
