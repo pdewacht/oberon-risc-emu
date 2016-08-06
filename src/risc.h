@@ -16,6 +16,7 @@ struct Damage {
 };
 
 struct RISC *risc_new();
+void risc_set_leds(struct RISC *risc, const struct RISC_LED *leds);
 void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial);
 void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi);
 void risc_set_clipboard(struct RISC *risc, const struct RISC_Clipboard *clipboard);

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "risc.h"
+#include "risc-io.h"
 #include "disk.h"
 #include "pclink.h"
 #include "raw-serial.h"
@@ -28,6 +29,7 @@ static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 static int best_display(const SDL_Rect *rect);
 static int clamp(int x, int min, int max);
 static enum Action map_keyboard_event(SDL_KeyboardEvent *event);
+static void show_leds(const struct RISC_LED *leds, uint32_t value);
 static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect);
 static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect);
 
@@ -61,6 +63,7 @@ struct KeyMapping key_map[] = {
 
 static struct option long_options[] = {
   { "fullscreen", no_argument,       NULL, 'f' },
+  { "leds",       no_argument,       NULL, 'L' },
   { "size",       required_argument, NULL, 's' },
   { "serial-fd",  required_argument, NULL, 'F' },
   { NULL }
@@ -76,13 +79,17 @@ static void fail(int code, const char *fmt, ...) {
 }
 
 static void usage() {
-  fail(1, "Usage: risc [--fullscreen] [--size <width>x<height>] disk-file-name");
+  fail(1, "Usage: risc [--fullscreen] [--size <width>x<height>] [--leds] disk-file-name");
 }
 
 int main (int argc, char *argv[]) {
   struct RISC *risc = risc_new();
   risc_set_serial(risc, &pclink);
   risc_set_clipboard(risc, &sdl_clipboard);
+
+  struct RISC_LED leds = {
+    .write = show_leds
+  };
 
   bool fullscreen = false;
   SDL_Rect risc_rect = {
@@ -91,10 +98,14 @@ int main (int argc, char *argv[]) {
   };
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "fS:F:", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "fLS:F:", long_options, NULL)) != -1) {
     switch (opt) {
       case 'f': {
         fullscreen = true;
+        break;
+      }
+      case 'L': {
+        risc_set_leds(risc, &leds);
         break;
       }
       case 's': {
@@ -298,6 +309,18 @@ static enum Action map_keyboard_event(SDL_KeyboardEvent *event) {
     }
   }
   return ACTION_OBERON_INPUT;
+}
+
+static void show_leds(const struct RISC_LED *leds, uint32_t value) {
+  printf("LEDs: ");
+  for (int i = 7; i >= 0; i--) {
+    if (value & (1 << i)) {
+      printf("%d", i);
+    } else {
+      printf("-");
+    }
+  }
+  printf("\n");
 }
 
 static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect) {

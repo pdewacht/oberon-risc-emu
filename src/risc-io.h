@@ -21,4 +21,8 @@ struct RISC_Clipboard {
   uint32_t (*read_data)(const struct RISC_Clipboard *);
 };
 
+struct RISC_LED {
+  void (*write)(const struct RISC_LED *, uint32_t);
+};
+
 #endif  // RISC_IO_H

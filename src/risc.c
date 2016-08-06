@@ -39,8 +39,8 @@ struct RISC {
   uint32_t mouse;
   uint8_t  key_buf[16];
   uint32_t key_cnt;
-  uint32_t leds;
 
+  const struct RISC_LED *leds;
   const struct RISC_Serial *serial;
   uint32_t spi_selected;
   const struct RISC_SPI *spi[4];
@@ -81,6 +81,10 @@ struct RISC *risc_new() {
   risc_screen_size_hack(risc, RISC_FRAMEBUFFER_WIDTH, RISC_FRAMEBUFFER_HEIGHT);
   risc_reset(risc);
   return risc;
+}
+
+void risc_set_leds(struct RISC *risc, const struct RISC_LED *leds) {
+  risc->leds = leds;
 }
 
 void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial) {
@@ -477,16 +481,9 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
   switch (address - IOStart) {
     case 4: {
       // LED control
-      risc->leds = value;
-      printf("LEDs: ");
-      for (int i = 7; i >= 0; i--) {
-        if (risc->leds & (1 << i)) {
-          printf("%d", i);
-        } else {
-          printf("-");
-        }
+      if (risc->leds) {
+        risc->leds->write(risc->leds, value);
       }
-      printf("\n");
       break;
     }
     case 8: {
