@@ -24,10 +24,38 @@ static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 #define MAX_HEIGHT 2048
 #define MAX_WIDTH  2048
 
-static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect);
-static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect);
+static int best_display(const SDL_Rect *rect);
 static int clamp(int x, int min, int max);
+static enum Action map_keyboard_event(SDL_KeyboardEvent *event);
+static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect);
+static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect);
 
+enum Action {
+  ACTION_OBERON_INPUT,
+  ACTION_QUIT,
+  ACTION_RESET,
+  ACTION_TOGGLE_FULLSCREEN,
+  ACTION_FAKE_MOUSE1,
+  ACTION_FAKE_MOUSE2,
+  ACTION_FAKE_MOUSE3
+};
+
+struct KeyMapping {
+  int state;
+  SDL_Keycode sym;
+  SDL_Keymod mod1, mod2;
+  enum Action action;
+};
+
+struct KeyMapping key_map[] = {
+  { SDL_PRESSED,  SDLK_F4,     KMOD_ALT, 0,           ACTION_QUIT },
+  { SDL_PRESSED,  SDLK_F12,    0, 0,                  ACTION_RESET },
+  { SDL_PRESSED,  SDLK_F11,    0, 0,                  ACTION_TOGGLE_FULLSCREEN },
+  { SDL_PRESSED,  SDLK_RETURN, KMOD_ALT, 0,           ACTION_TOGGLE_FULLSCREEN },
+  { SDL_PRESSED,  SDLK_f,      KMOD_GUI, KMOD_SHIFT,  ACTION_TOGGLE_FULLSCREEN },  // Mac?
+  { SDL_PRESSED,  SDLK_LALT,   0, 0,                  ACTION_FAKE_MOUSE2 },
+  { SDL_RELEASED, SDLK_LALT,   0, 0,                  ACTION_FAKE_MOUSE2 },
+};
 
 static void usage() {
   fprintf(stderr, "Usage: risc [--fullscreen] [--size <width>x<height>] disk-file-name\n");
@@ -184,38 +212,43 @@ int main (int argc, char *argv[]) {
         case SDL_KEYDOWN:
         case SDL_KEYUP: {
           bool down = event.key.state == SDL_PRESSED;
-          SDL_Keysym k = event.key.keysym;
-          if (k.sym == SDLK_F12) {
-            // F12 = Oberon reset
-            if (down) {
+          switch (map_keyboard_event(&event.key)) {
+            case ACTION_RESET: {
               risc_reset(risc);
+              break;
             }
-          } else if (k.sym == SDLK_F11 ||
-                     (k.sym == SDLK_f && (k.mod & KMOD_GUI) && (k.mod & KMOD_SHIFT))) {
-            // F11 / Cmd-Shift-F = Toggle fullscreen
-            if (down) {
+            case ACTION_TOGGLE_FULLSCREEN: {
               fullscreen ^= true;
               if (fullscreen) {
                 SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
               } else {
                 SDL_SetWindowFullscreen(window, 0);
               }
+              break;
             }
-          } else if (k.sym == SDLK_F4 && (k.mod & KMOD_ALT)) {
-            // Alt-F4 = quit (for when we're running without windowing system)
-            if (down) {
+            case ACTION_QUIT: {
               SDL_PushEvent(&(SDL_Event){ .type=SDL_QUIT });
+              break;
             }
-          } else if (k.sym == SDLK_LALT) {
-            // Emulate middle button
-            risc_mouse_button(risc, 2, down);
-          } else {
-            // Pass other keys to Oberon
-            uint8_t scancode[MAX_PS2_CODE_LEN];
-            int len = ps2_encode(k.scancode, down, scancode);
-            risc_keyboard_input(risc, scancode, len);
+            case ACTION_FAKE_MOUSE1: {
+              risc_mouse_button(risc, 1, down);
+              break;
+            }
+            case ACTION_FAKE_MOUSE2: {
+              risc_mouse_button(risc, 2, down);
+              break;
+            }
+            case ACTION_FAKE_MOUSE3: {
+              risc_mouse_button(risc, 3, down);
+              break;
+            }
+            case ACTION_OBERON_INPUT: {
+              uint8_t ps2_bytes[MAX_PS2_CODE_LEN];
+              int len = ps2_encode(event.key.keysym.scancode, down, ps2_bytes);
+              risc_keyboard_input(risc, ps2_bytes, len);
+              break;
+            }
           }
-          break;
         }
       }
     }
@@ -242,6 +275,18 @@ static int clamp(int x, int min, int max) {
   if (x < min) return min;
   if (x > max) return max;
   return x;
+}
+
+static enum Action map_keyboard_event(SDL_KeyboardEvent *event) {
+  for (size_t i = 0; i < sizeof(key_map) / sizeof(key_map[0]); i++) {
+    if ((event->state == key_map[i].state) &&
+        (event->keysym.sym == key_map[i].sym) &&
+        ((key_map[i].mod1 == 0) || (event->keysym.mod & key_map[i].mod1)) &&
+        ((key_map[i].mod2 == 0) || (event->keysym.mod & key_map[i].mod2))) {
+      return key_map[i].action;
+    }
+  }
+  return ACTION_OBERON_INPUT;
 }
 
 static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect) {
