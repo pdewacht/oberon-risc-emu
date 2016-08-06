@@ -1,11 +1,12 @@
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
-#include <getopt.h>
 #include <SDL.h>
+#include <getopt.h>
+#include <math.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "risc.h"
 #include "disk.h"
 #include "pclink.h"
@@ -58,39 +59,25 @@ struct KeyMapping key_map[] = {
   { SDL_RELEASED, SDLK_LALT,   0, 0,                  ACTION_FAKE_MOUSE2 },
 };
 
-static void usage() {
-  fprintf(stderr, "Usage: risc [--fullscreen] [--size <width>x<height>] disk-file-name\n");
-  exit(1);
-}
-
-static void sdl_error_if(bool error, const char *msg) {
-  if (error) {
-    fprintf(stderr, "%s: %s\n", msg, SDL_GetError());
-    exit(1);
-  }
-}
-
-static int best_display(const SDL_Rect *rect) {
-  int result = SDL_WINDOWPOS_UNDEFINED;
-  int display_cnt = SDL_GetNumVideoDisplays();
-  for (int i = 0; i < display_cnt; i++) {
-    SDL_Rect bounds;
-    SDL_GetDisplayBounds(i, &bounds);
-    if (bounds.h == rect->h && bounds.w >= rect->w) {
-      result = SDL_WINDOWPOS_UNDEFINED_DISPLAY(i);
-      if (bounds.w == rect->w)
-        break;  // exact match
-    }
-  }
-  return result;
-}
-
 static struct option long_options[] = {
   { "fullscreen", no_argument,       NULL, 'f' },
   { "size",       required_argument, NULL, 's' },
   { "serial-fd",  required_argument, NULL, 'F' },
   { NULL }
 };
+
+static void fail(int code, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+  fputc('\n', stderr);
+  exit(code);
+}
+
+static void usage() {
+  fail(1, "Usage: risc [--fullscreen] [--size <width>x<height>] disk-file-name");
+}
 
 int main (int argc, char *argv[]) {
   struct RISC *risc = risc_new();
@@ -134,7 +121,9 @@ int main (int argc, char *argv[]) {
   }
   risc_set_spi(risc, 1, disk_new(argv[optind]));
 
-  sdl_error_if(SDL_Init(SDL_INIT_VIDEO) != 0, "Unable to initialize SDL");
+  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    fail(1, "Unable to initialize SDL: %s", SDL_GetError());
+  }
   atexit(SDL_Quit);
   SDL_EnableScreenSaver();
   SDL_ShowCursor(false);
@@ -150,17 +139,23 @@ int main (int argc, char *argv[]) {
                                         window_pos, window_pos,
                                         risc_rect.w, risc_rect.h,
                                         window_flags);
-  sdl_error_if(window == NULL, "Could not create window");
+  if (window == NULL) {
+    fail(1, "Could not create window: %s", SDL_GetError());
+  }
 
   SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
-  sdl_error_if(renderer == NULL, "Could not create renderer");
+  if (renderer == NULL) {
+    fail(1, "Could not create renderer: %s", SDL_GetError());
+  }
 
   SDL_Texture *texture = SDL_CreateTexture(renderer,
                                            SDL_PIXELFORMAT_ARGB8888,
                                            SDL_TEXTUREACCESS_STREAMING,
                                            risc_rect.w,
                                            risc_rect.h);
-  sdl_error_if(texture == NULL, "Could not create texture");
+  if (texture == NULL) {
+    fail(1, "Could not create texture: %s", SDL_GetError());
+  }
 
   SDL_Rect display_rect;
   double display_scale = scale_display(window, &risc_rect, &display_rect);
@@ -271,6 +266,21 @@ int main (int argc, char *argv[]) {
   return 0;
 }
 
+
+static int best_display(const SDL_Rect *rect) {
+  int result = SDL_WINDOWPOS_UNDEFINED;
+  int display_cnt = SDL_GetNumVideoDisplays();
+  for (int i = 0; i < display_cnt; i++) {
+    SDL_Rect bounds;
+    SDL_GetDisplayBounds(i, &bounds);
+    if (bounds.h == rect->h && bounds.w >= rect->w) {
+      result = SDL_WINDOWPOS_UNDEFINED_DISPLAY(i);
+      if (bounds.w == rect->w)
+        break;  // exact match
+    }
+  }
+  return result;
+}
 
 static int clamp(int x, int min, int max) {
   if (x < min) return min;

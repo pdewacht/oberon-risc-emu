@@ -13,7 +13,7 @@ RISC_SOURCE = \
 	src/raw-serial.c src/raw-serial.h \
 	src/sdl-clipboard.c src/sdl-clipboard.h
 
-risc: $(RISC_SOURCE) 
+risc: $(RISC_SOURCE)
 	$(CC) -o $@ $(filter %.c, $^) $(RISC_CFLAGS)
 
 # Assumes SDL2 framework download, following README instructions for install.
