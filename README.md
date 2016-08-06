@@ -83,9 +83,8 @@ Usage: `risc [options] disk-image.dsk`
 
 * `--fullscreen` Start the emulator in fullscreen mode.
 * `--size <width>x<height>` Use a non-standard window size.
-* `--serial-fd <fd>` Send serial I/O to file descriptor fd (input) and
-  fd+1 (output). (You probably won't need this.)
-
+* `--leds` Print the LED changes to stdout. Useful if you're working on the kernel,
+  noisy otherwise.
 
 ## Keyboard and mouse
 
