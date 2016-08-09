@@ -76,17 +76,17 @@ uint32_t fp_mul(uint32_t x, uint32_t y) {
   uint32_t z0;
   if ((m & (1ULL << 47)) != 0) {
     e1++;
-    z0 = (m >> 24) & 0x7FFFFF;
+    z0 = ((m >> 23) + 1) & 0xFFFFFF;
   } else {
-    z0 = (m >> 23) & 0x7FFFFF;
+    z0 = ((m >> 22) + 1) & 0xFFFFFF;
   }
 
   if (xe == 0 || ye == 0) {
     return 0;
   } else if ((e1 & 0x100) == 0) {
-    return sign | ((e1 & 0xFF) << 23) | z0;
+    return sign | ((e1 & 0xFF) << 23) | (z0 >> 1);
   } else if ((e1 & 0x80) == 0) {
-    return sign | (0xFF << 23) | z0;
+    return sign | (0xFF << 23) | (z0 >> 1);
   } else {
     return 0;
   }
