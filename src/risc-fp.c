@@ -50,11 +50,14 @@ uint32_t fp_add(uint32_t x, uint32_t y, bool u, bool v) {
     e1 -= 24;
   }
 
+  bool xn = (x & 0x7FFFFFFF) == 0;
+  bool yn = (y & 0x7FFFFFFF) == 0;
+
   if (v) {
     return (int32_t)(sum << 5) >> 6;
-  } else if ((x & 0x7FFFFFFF) == 0) {
-    return !u ? y : 0;
-  } else if ((y & 0x7FFFFFFF) == 0) {
+  } else if (xn) {
+    return (u | yn) ? 0 : y;
+  } else if (yn) {
     return x;
   } else if ((t3 & 0x01FFFFFF) == 0 || (e1 & 0x100) != 0) {
     return 0;
