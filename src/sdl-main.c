@@ -62,11 +62,12 @@ struct KeyMapping key_map[] = {
 };
 
 static struct option long_options[] = {
+  { "zoom",       required_argument, NULL, 'z' },
   { "fullscreen", no_argument,       NULL, 'f' },
   { "leds",       no_argument,       NULL, 'L' },
   { "size",       required_argument, NULL, 's' },
   { "serial-fd",  required_argument, NULL, 'F' },
-  { NULL }
+  { NULL,         no_argument,       NULL, 0   }
 };
 
 static void fail(int code, const char *fmt, ...) {
@@ -79,7 +80,7 @@ static void fail(int code, const char *fmt, ...) {
 }
 
 static void usage() {
-  fail(1, "Usage: risc [--fullscreen] [--size <width>x<height>] [--leds] disk-file-name");
+  fail(1, "Usage: risc [--zoom N] [--fullscreen] [--size WIDTHxHEIGHT] [--leds] DISK-IMAGE");
 }
 
 int main (int argc, char *argv[]) {
@@ -92,14 +93,22 @@ int main (int argc, char *argv[]) {
   };
 
   bool fullscreen = false;
+  double zoom = 0;
   SDL_Rect risc_rect = {
     .w = RISC_FRAMEBUFFER_WIDTH,
     .h = RISC_FRAMEBUFFER_HEIGHT
   };
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "fLS:F:", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "z:fLS:F:", long_options, NULL)) != -1) {
     switch (opt) {
+      case 'z': {
+        double x = strtod(optarg, 0);
+        if (x > 0) {
+          zoom = x;
+        }
+        break;
+      }
       case 'f': {
         fullscreen = true;
         break;
@@ -141,14 +150,25 @@ int main (int argc, char *argv[]) {
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
 
   int window_flags = SDL_WINDOW_HIDDEN;
-  int window_pos = SDL_WINDOWPOS_UNDEFINED;
+  int display = 0;
   if (fullscreen) {
     window_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-    window_pos = best_display(&risc_rect);
+    display = best_display(&risc_rect);
+  }
+  if (zoom == 0) {
+    SDL_Rect bounds;
+    if (SDL_GetDisplayBounds(display, &bounds) == 0 &&
+        bounds.h >= risc_rect.h * 2 && bounds.w >= risc_rect.w * 2) {
+      zoom = 2;
+    } else {
+      zoom = 1;
+    }
   }
   SDL_Window *window = SDL_CreateWindow("Project Oberon",
-                                        window_pos, window_pos,
-                                        risc_rect.w, risc_rect.h,
+                                        SDL_WINDOWPOS_UNDEFINED_DISPLAY(display),
+                                        SDL_WINDOWPOS_UNDEFINED_DISPLAY(display),
+                                        (int)(risc_rect.w * zoom),
+                                        (int)(risc_rect.h * zoom),
                                         window_flags);
   if (window == NULL) {
     fail(1, "Could not create window: %s", SDL_GetError());
@@ -186,6 +206,7 @@ int main (int argc, char *argv[]) {
       switch (event.type) {
         case SDL_QUIT: {
           done = true;
+          break;
         }
 
         case SDL_WINDOWEVENT: {
@@ -279,18 +300,19 @@ int main (int argc, char *argv[]) {
 
 
 static int best_display(const SDL_Rect *rect) {
-  int result = SDL_WINDOWPOS_UNDEFINED;
+  int best = 0;
   int display_cnt = SDL_GetNumVideoDisplays();
   for (int i = 0; i < display_cnt; i++) {
     SDL_Rect bounds;
-    SDL_GetDisplayBounds(i, &bounds);
-    if (bounds.h == rect->h && bounds.w >= rect->w) {
-      result = SDL_WINDOWPOS_UNDEFINED_DISPLAY(i);
-      if (bounds.w == rect->w)
+    if (SDL_GetDisplayBounds(i, &bounds) == 0 &&
+        bounds.h == rect->h && bounds.w >= rect->w) {
+      best = i;
+      if (bounds.w == rect->w) {
         break;  // exact match
+      }
     }
   }
-  return result;
+  return best;
 }
 
 static int clamp(int x, int min, int max) {
