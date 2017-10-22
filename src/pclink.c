@@ -101,18 +101,18 @@ static uint32_t PCLink_RData(const struct RISC_Serial *serial) {
       }
     } else {
       int pos = (rxcount - fnlen - 1) % 256;
-      if (pos == 0) {
+      if (pos == 0 || flen == 0) {
         if (flen > 255) {
           ch = 255;
         } else {
           ch = (uint8_t)flen;
+          if (flen == 0) {
+            mode = 0; unlink(RecName);
+          }
         }
       } else {
         read(fd, &ch, 1);
         flen--;
-        if (flen == 0) {
-          mode = 0; unlink(RecName);
-        }
       }
     }
   }
