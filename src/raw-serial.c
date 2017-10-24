@@ -23,15 +23,31 @@ struct RawSerial {
   int fd_out;
 };
 
+static int max(int a, int b) {
+  return a > b ? a : b;
+}
+
 static uint32_t read_status(const struct RISC_Serial *serial) {
   struct RawSerial *s = (struct RawSerial *)serial;
   struct timeval tv = { 0, 0 };
-  fd_set rfds;
-  FD_ZERO(&rfds);
-  FD_SET(s->fd_in, &rfds);
-  int nfds = s->fd_in + 1;
-  int r = select(nfds, &rfds, NULL, NULL, &tv);
-  return r == 1;
+  fd_set read_fds;
+  fd_set write_fds;
+  FD_ZERO(&read_fds);
+  FD_SET(s->fd_in, &read_fds);
+  FD_ZERO(&write_fds);
+  FD_SET(s->fd_out, &write_fds);
+  int nfds = max(s->fd_in, s->fd_out) + 1;
+  int r = select(nfds, &read_fds, &write_fds, NULL, &tv);
+  int status = 0;
+  if (r > 0) {
+    if (FD_ISSET(s->fd_in, &read_fds)) {
+      status |= 1;
+    }
+    if (FD_ISSET(s->fd_out, &write_fds)) {
+      status |= 2;
+    }
+  }
+  return status;
 }
 
 static uint32_t read_data(const struct RISC_Serial *serial) {
@@ -47,30 +63,24 @@ static void write_data(const struct RISC_Serial *serial, uint32_t data) {
   write(s->fd_out, &byte, 1);
 }
 
-static bool set_non_blocking(int fd) {
-  int r = fcntl(fd, F_GETFL);
-  if (r != -1) {
-    int flags = r | O_NONBLOCK;
-    r = fcntl(fd, F_SETFL, flags);
-  }
-  return r != -1;
-}
+struct RISC_Serial *raw_serial_new(const char *filename_in, const char *filename_out) {
+  int fd_in, fd_out;
 
-struct RISC_Serial *raw_serial_new(int fd_in, int fd_out) {
-  if (!set_non_blocking(fd_in)) {
-    fprintf(stderr, "serial fd %d (input): ", fd_in);
-    perror(NULL);
-    return NULL;
+  fd_in = open(filename_in, O_RDONLY | O_NONBLOCK);
+  if (fd_in < 0) {
+    perror("Failed to open serial input file");
+    goto fail1;
   }
-  if (!set_non_blocking(fd_out)) {
-    fprintf(stderr, "serial fd %d (output): ", fd_out);
-    perror(NULL);
-    return NULL;
+
+  fd_out = open(filename_out, O_RDWR | O_NONBLOCK);
+  if (fd_out < 0) {
+    perror("Failed to open serial output file");
+    goto fail2;
   }
 
   struct RawSerial *s = malloc(sizeof(*s));
   if (!s) {
-    return NULL;
+    goto fail3;
   }
 
   *s = (struct RawSerial){
@@ -83,6 +93,13 @@ struct RISC_Serial *raw_serial_new(int fd_in, int fd_out) {
     .fd_out = fd_out
   };
   return &s->serial;
+
+ fail3:
+  close(fd_out);
+ fail2:
+  close(fd_in);
+ fail1:
+  return NULL;
 }
 
 #endif  // _WIN32

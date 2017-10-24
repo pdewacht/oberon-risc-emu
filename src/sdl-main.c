@@ -66,7 +66,8 @@ static struct option long_options[] = {
   { "fullscreen", no_argument,       NULL, 'f' },
   { "leds",       no_argument,       NULL, 'L' },
   { "size",       required_argument, NULL, 's' },
-  { "serial-fd",  required_argument, NULL, 'F' },
+  { "serial-in",  required_argument, NULL, 'I' },
+  { "serial-out", required_argument, NULL, 'O' },
   { NULL,         no_argument,       NULL, 0   }
 };
 
@@ -98,6 +99,8 @@ int main (int argc, char *argv[]) {
     .w = RISC_FRAMEBUFFER_WIDTH,
     .h = RISC_FRAMEBUFFER_HEIGHT
   };
+  const char *serial_in = NULL;
+  const char *serial_out = NULL;
 
   int opt;
   while ((opt = getopt_long(argc, argv, "z:fLS:F:", long_options, NULL)) != -1) {
@@ -127,8 +130,12 @@ int main (int argc, char *argv[]) {
         risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
         break;
       }
-      case 'F': {
-        risc_set_serial(risc, raw_serial_new(atoi(optarg), atoi(optarg) + 1));
+      case 'I': {
+        serial_in = optarg;
+        break;
+      }
+      case 'O': {
+        serial_out = optarg;
         break;
       }
       default: {
@@ -136,10 +143,21 @@ int main (int argc, char *argv[]) {
       }
     }
   }
+
   if (optind != argc - 1) {
     usage();
   }
   risc_set_spi(risc, 1, disk_new(argv[optind]));
+
+  if (serial_in || serial_out) {
+    if (!serial_in) {
+      serial_in = "/dev/null";
+    }
+    if (!serial_out) {
+      serial_out = "/dev/null";
+    }
+    risc_set_serial(risc, raw_serial_new(serial_in, serial_out));
+  }
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     fail(1, "Unable to initialize SDL: %s", SDL_GetError());
