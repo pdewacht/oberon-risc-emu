@@ -103,7 +103,7 @@ int main (int argc, char *argv[]) {
   const char *serial_out = NULL;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "z:fLS:F:", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "z:fLS:I:O:", long_options, NULL)) != -1) {
     switch (opt) {
       case 'z': {
         double x = strtod(optarg, 0);
