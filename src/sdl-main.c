@@ -82,7 +82,18 @@ static void fail(int code, const char *fmt, ...) {
 }
 
 static void usage() {
-  fail(1, "Usage: risc [--zoom N] [--fullscreen] [--size WIDTHxHEIGHT] [--leds] DISK-IMAGE");
+  puts("Usage: risc [OPTIONS...] DISK-IMAGE\n"
+       "\n"
+       "Options:\n"
+       "  --fullscreen          Start the emulator in full screen mode\n"
+       "  --zoom REAL           Scale the display in windowed mode\n"
+       "  --leds                Log LED state on stdout\n"
+       "  --size WIDTHxHEIGHT   Set framebuffer size\n"
+       "  --boot-from-serial    Boot from serial line (disk image not required)\n"
+       "  --serial-in FILE      Read serial input from FILE\n"
+       "  --serial-out FILE     Write serial output to FILE\n"
+       );
+  exit(1);
 }
 
 int main (int argc, char *argv[]) {
