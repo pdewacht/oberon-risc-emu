@@ -20,6 +20,7 @@ void risc_set_leds(struct RISC *risc, const struct RISC_LED *leds);
 void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial);
 void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi);
 void risc_set_clipboard(struct RISC *risc, const struct RISC_Clipboard *clipboard);
+void risc_set_switches(struct RISC *risc, int switches);
 void risc_screen_size_hack(struct RISC *risc, int width, int height);
 
 void risc_reset(struct RISC *risc);

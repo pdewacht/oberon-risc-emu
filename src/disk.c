@@ -32,6 +32,7 @@ struct Disk {
 static uint32_t disk_read(const struct RISC_SPI *spi);
 static void disk_write(const struct RISC_SPI *spi, uint32_t value);
 static void disk_run_command(struct Disk *disk);
+static void seek_sector(FILE *f, uint32_t secnum);
 static void read_sector(FILE *f, uint32_t buf[static 128]);
 static void write_sector(FILE *f, uint32_t buf[static 128]);
 
@@ -45,15 +46,17 @@ struct RISC_SPI *disk_new(const char *filename) {
 
   disk->state = diskCommand;
 
-  disk->file = fopen(filename, "rb+");
-  if (disk->file == 0) {
-    fprintf(stderr, "Can't open file \"%s\": %s\n", filename, strerror(errno));
-    exit(1);
-  }
+  if (filename) {
+    disk->file = fopen(filename, "rb+");
+    if (disk->file == 0) {
+      fprintf(stderr, "Can't open file \"%s\": %s\n", filename, strerror(errno));
+      exit(1);
+    }
 
-  // Check for filesystem-only image, starting directly at sector 1 (DiskAdr 29)
-  read_sector(disk->file, &disk->tx_buf[0]);
-  disk->offset = (disk->tx_buf[0] == 0x9B1EA38D)? 0x80002 : 0;
+    // Check for filesystem-only image, starting directly at sector 1 (DiskAdr 29)
+    read_sector(disk->file, &disk->tx_buf[0]);
+    disk->offset = (disk->tx_buf[0] == 0x9B1EA38D) ? 0x80002 : 0;
+  }
 
   return &disk->spi;
 }
@@ -130,14 +133,14 @@ static void disk_run_command(struct Disk *disk) {
       disk->state = diskRead;
       disk->tx_buf[0] = 0;
       disk->tx_buf[1] = 254;
-      fseek(disk->file, (arg - disk->offset) * 512, SEEK_SET);
+      seek_sector(disk->file, arg - disk->offset);
       read_sector(disk->file, &disk->tx_buf[2]);
       disk->tx_cnt = 2 + 128;
       break;
     }
     case 88: {
       disk->state = diskWrite;
-      fseek(disk->file, (arg - disk->offset) * 512, SEEK_SET);
+      seek_sector(disk->file, arg - disk->offset);
       disk->tx_buf[0] = 0;
       disk->tx_cnt = 1;
       break;
@@ -151,9 +154,17 @@ static void disk_run_command(struct Disk *disk) {
   disk->tx_idx = -1;
 }
 
+static void seek_sector(FILE *f, uint32_t secnum) {
+  if (f) {
+    fseek(f, secnum * 512, SEEK_SET);
+  }
+}
+
 static void read_sector(FILE *f, uint32_t buf[static 128]) {
   uint8_t bytes[512] = { 0 };
-  fread(bytes, 512, 1, f);
+  if (f) {
+    fread(bytes, 512, 1, f);
+  }
   for (int i = 0; i < 128; i++) {
     buf[i] = (uint32_t)bytes[i*4+0]
       | ((uint32_t)bytes[i*4+1] << 8)
@@ -163,12 +174,14 @@ static void read_sector(FILE *f, uint32_t buf[static 128]) {
 }
 
 static void write_sector(FILE *f, uint32_t buf[static 128]) {
-  uint8_t bytes[512];
-  for (int i = 0; i < 128; i++) {
-    bytes[i*4+0] = (uint8_t)(buf[i]      );
-    bytes[i*4+1] = (uint8_t)(buf[i] >>  8);
-    bytes[i*4+2] = (uint8_t)(buf[i] >> 16);
-    bytes[i*4+3] = (uint8_t)(buf[i] >> 24);
+  if (f) {
+    uint8_t bytes[512];
+    for (int i = 0; i < 128; i++) {
+      bytes[i*4+0] = (uint8_t)(buf[i]      );
+      bytes[i*4+1] = (uint8_t)(buf[i] >>  8);
+      bytes[i*4+2] = (uint8_t)(buf[i] >> 16);
+      bytes[i*4+3] = (uint8_t)(buf[i] >> 24);
+    }
+    fwrite(bytes, 512, 1, f);
   }
-  fwrite(bytes, 512, 1, f);
 }

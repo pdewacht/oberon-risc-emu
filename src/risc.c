@@ -39,6 +39,7 @@ struct RISC {
   uint32_t mouse;
   uint8_t  key_buf[16];
   uint32_t key_cnt;
+  uint32_t switches;
 
   const struct RISC_LED *leds;
   const struct RISC_Serial *serial;
@@ -99,6 +100,10 @@ void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi) {
 
 void risc_set_clipboard(struct RISC *risc, const struct RISC_Clipboard *clipboard) {
   risc->clipboard = clipboard;
+}
+
+void risc_set_switches(struct RISC *risc, int switches) {
+  risc->switches = switches;
 }
 
 void risc_screen_size_hack(struct RISC *risc, int width, int height) {
@@ -407,7 +412,7 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
     }
     case 4: {
       // Switches
-      return 0;
+      return risc->switches;
     }
     case 8: {
       // RS232 data

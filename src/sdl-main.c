@@ -62,13 +62,14 @@ struct KeyMapping key_map[] = {
 };
 
 static struct option long_options[] = {
-  { "zoom",       required_argument, NULL, 'z' },
-  { "fullscreen", no_argument,       NULL, 'f' },
-  { "leds",       no_argument,       NULL, 'L' },
-  { "size",       required_argument, NULL, 's' },
-  { "serial-in",  required_argument, NULL, 'I' },
-  { "serial-out", required_argument, NULL, 'O' },
-  { NULL,         no_argument,       NULL, 0   }
+  { "zoom",             required_argument, NULL, 'z' },
+  { "fullscreen",       no_argument,       NULL, 'f' },
+  { "leds",             no_argument,       NULL, 'L' },
+  { "size",             required_argument, NULL, 's' },
+  { "serial-in",        required_argument, NULL, 'I' },
+  { "serial-out",       required_argument, NULL, 'O' },
+  { "boot-from-serial", no_argument,       NULL, 'S' },
+  { NULL,               no_argument,       NULL, 0   }
 };
 
 static void fail(int code, const char *fmt, ...) {
@@ -101,9 +102,10 @@ int main (int argc, char *argv[]) {
   };
   const char *serial_in = NULL;
   const char *serial_out = NULL;
+  bool boot_from_serial = false;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "z:fLS:I:O:", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "z:fLs:I:O:S", long_options, NULL)) != -1) {
     switch (opt) {
       case 'z': {
         double x = strtod(optarg, 0);
@@ -138,16 +140,25 @@ int main (int argc, char *argv[]) {
         serial_out = optarg;
         break;
       }
+      case 'S': {
+        boot_from_serial = true;
+        risc_set_switches(risc, 1);
+        break;
+      }
       default: {
         usage();
       }
     }
   }
 
-  if (optind != argc - 1) {
+  if (optind == argc - 1) {
+    risc_set_spi(risc, 1, disk_new(argv[optind]));
+  } else if (optind == argc && boot_from_serial) {
+    /* Allow diskless boot */
+    risc_set_spi(risc, 1, disk_new(NULL));
+  } else {
     usage();
   }
-  risc_set_spi(risc, 1, disk_new(argv[optind]));
 
   if (serial_in || serial_out) {
     if (!serial_in) {
