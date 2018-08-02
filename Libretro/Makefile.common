@@ -1,0 +1,9 @@
+INCFLAGS := -I$(CORE_DIR)/src
+
+SOURCES_C := \
+	$(CORE_DIR)/Libretro/libretro.c \
+	$(CORE_DIR)/src/risc.c \
+	$(CORE_DIR)/src/risc-fp.c \
+	$(CORE_DIR)/src/disk.c \
+	$(CORE_DIR)/src/pclink.c \
+	$(CORE_DIR)/src/raw-serial.c \
