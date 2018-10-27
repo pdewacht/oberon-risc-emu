@@ -83,6 +83,7 @@ Usage: `risc [options] disk-image.dsk`
 
 * `--fullscreen` Start the emulator in fullscreen mode.
 * `--size <width>x<height>` Use a non-standard window size.
+* `--color` Use 16-color mode (required a different Display.Mod)
 * `--leds` Print the LED changes to stdout. Useful if you're working on the kernel,
   noisy otherwise.
 

@@ -31,7 +31,7 @@ static int clamp(int x, int min, int max);
 static enum Action map_keyboard_event(SDL_KeyboardEvent *event);
 static void show_leds(const struct RISC_LED *leds, uint32_t value);
 static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect);
-static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect);
+static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect, bool color);
 
 enum Action {
   ACTION_OBERON_INPUT,
@@ -69,6 +69,7 @@ static struct option long_options[] = {
   { "serial-in",        required_argument, NULL, 'I' },
   { "serial-out",       required_argument, NULL, 'O' },
   { "boot-from-serial", no_argument,       NULL, 'S' },
+  { "color",            no_argument,       NULL, 'c' },
   { NULL,               no_argument,       NULL, 0   }
 };
 
@@ -88,6 +89,7 @@ static void usage() {
        "  --fullscreen          Start the emulator in full screen mode\n"
        "  --zoom REAL           Scale the display in windowed mode\n"
        "  --leds                Log LED state on stdout\n"
+       "  --color               Use 16 color mode (requires modified Display.Mod)\n"
        "  --size WIDTHxHEIGHT   Set framebuffer size\n"
        "  --boot-from-serial    Boot from serial line (disk image not required)\n"
        "  --serial-in FILE      Read serial input from FILE\n"
@@ -113,10 +115,10 @@ int main (int argc, char *argv[]) {
   };
   const char *serial_in = NULL;
   const char *serial_out = NULL;
-  bool boot_from_serial = false;
+  bool boot_from_serial = false, color = false;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "z:fLs:I:O:S", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "z:fLs:I:O:Sc", long_options, NULL)) != -1) {
     switch (opt) {
       case 'z': {
         double x = strtod(optarg, 0);
@@ -140,7 +142,12 @@ int main (int argc, char *argv[]) {
         }
         risc_rect.w = clamp(w, 32, MAX_WIDTH) & ~31;
         risc_rect.h = clamp(h, 32, MAX_HEIGHT);
-        risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
+        risc_screen_size_hack(risc, risc_rect.w, risc_rect.h, color);
+        break;
+      }
+      case 'c': {
+        color = true;
+        risc_screen_size_hack(risc, risc_rect.w, risc_rect.h, color);
         break;
       }
       case 'I': {
@@ -230,7 +237,7 @@ int main (int argc, char *argv[]) {
 
   SDL_Rect display_rect;
   double display_scale = scale_display(window, &risc_rect, &display_rect);
-  update_texture(risc, texture, &risc_rect);
+  update_texture(risc, texture, &risc_rect, color);
   SDL_ShowWindow(window);
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
@@ -324,7 +331,7 @@ int main (int argc, char *argv[]) {
     risc_set_time(risc, frame_start);
     risc_run(risc, CPU_HZ / FPS);
 
-    update_texture(risc, texture, &risc_rect);
+    update_texture(risc, texture, &risc_rect, color);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
     SDL_RenderPresent(renderer);
@@ -412,28 +419,37 @@ static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_R
 // allocate three megabyte on the stack.
 static uint32_t pixel_buf[MAX_WIDTH * MAX_HEIGHT];
 
-static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect) {
+static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect, bool color) {
   struct Damage damage = risc_get_framebuffer_damage(risc);
   if (damage.y1 <= damage.y2) {
     uint32_t *in = risc_get_framebuffer_ptr(risc);
+    uint32_t *pal = color ? risc_get_palette_ptr(risc) : NULL;
     uint32_t out_idx = 0;
 
     for (int line = damage.y2; line >= damage.y1; line--) {
-      int line_start = line * (risc_rect->w / 32);
+      int line_start = line * (risc_rect->w / (color ? 8 : 32));
       for (int col = damage.x1; col <= damage.x2; col++) {
         uint32_t pixels = in[line_start + col];
-        for (int b = 0; b < 32; b++) {
-          pixel_buf[out_idx] = (pixels & 1) ? WHITE : BLACK;
-          pixels >>= 1;
-          out_idx++;
+        if (color) {
+          for (int b = 0; b < 8; b++) {
+            pixel_buf[out_idx] = pal[pixels & 0xF];
+            pixels >>= 4;
+            out_idx++;
+          }
+        } else {
+          for (int b = 0; b < 32; b++) {
+            pixel_buf[out_idx] = (pixels & 1) ? WHITE : BLACK;
+            pixels >>= 1;
+            out_idx++;
+          }
         }
       }
     }
 
     SDL_Rect rect = {
-      .x = damage.x1 * 32,
+      .x = damage.x1 * (color ? 8 : 32),
       .y = risc_rect->h - damage.y2 - 1,
-      .w = (damage.x2 - damage.x1 + 1) * 32,
+      .w = (damage.x2 - damage.x1 + 1) * (color ? 8 : 32),
       .h = (damage.y2 - damage.y1 + 1)
     };
     SDL_UpdateTexture(texture, &rect, pixel_buf, rect.w * 4);

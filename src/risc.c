@@ -12,20 +12,21 @@
 // We use all 32 bits. This allows us to have more than 1 megabyte of
 // RAM.
 //
-// We add an extra half megabyte. This is used to allow for framebuffers
-// larger than the normal 1024x768. A modified Dispay.Mod and Input.Mod
+// We add two extra megabytes. This is used to allow for 16 color framebuffers
+// larger than the normal 1024x768. A modified Display.Mod and Input.Mod
 // is needed to use this feature, this is included in the Oberon
 // directory.
 //
 // As we don't change DisplayStart, this extra memory is not useful for a
 // larger heap.
 
-#define MemSize      0x00180000
+#define MemSize      0x00300000
 #define MemWords     (MemSize / 4)
 #define ROMStart     0xFFFFF800
 #define ROMWords     512
 #define DisplayStart 0x000E7F00
 #define IOStart      0xFFFFFFC0
+#define PaletteStart 0xFFFFFF80
 
 
 struct RISC {
@@ -47,12 +48,14 @@ struct RISC {
   const struct RISC_SPI *spi[4];
   const struct RISC_Clipboard *clipboard;
 
+  bool fb_color;
   int fb_width;   // words
   int fb_height;  // lines
   struct Damage damage;
 
   uint32_t RAM[MemWords];
   uint32_t ROM[ROMWords];
+  uint32_t Palette[16];
 };
 
 enum {
@@ -75,11 +78,16 @@ static const uint32_t bootloader[ROMWords] = {
 #include "risc-boot.inc"
 };
 
+static const uint32_t default_palette[16] = {
+  0x000000, 0x000080, 0x008000, 0x008080, 0x800000, 0x800080, 0x808000, 0x808080,
+  0xc0c0c0, 0x0000ff, 0x00ff00, 0x00ffff, 0xff0000, 0xff00ff, 0xffff00, 0xffffff,
+};
+
 
 struct RISC *risc_new() {
   struct RISC *risc = calloc(1, sizeof(*risc));
   memcpy(risc->ROM, bootloader, sizeof(risc->ROM));
-  risc_screen_size_hack(risc, RISC_FRAMEBUFFER_WIDTH, RISC_FRAMEBUFFER_HEIGHT);
+  risc_screen_size_hack(risc, RISC_FRAMEBUFFER_WIDTH, RISC_FRAMEBUFFER_HEIGHT, false);
   risc_reset(risc);
   return risc;
 }
@@ -106,9 +114,14 @@ void risc_set_switches(struct RISC *risc, int switches) {
   risc->switches = switches;
 }
 
-void risc_screen_size_hack(struct RISC *risc, int width, int height) {
+void risc_screen_size_hack(struct RISC *risc, int width, int height, bool color) {
+  risc->fb_color = color;
   risc->fb_width = width / 32;
   risc->fb_height = height;
+  if (color) {
+    risc->fb_width = width / 8;
+    memcpy(risc->Palette, default_palette, sizeof(risc->Palette));
+  }
   risc->damage = (struct Damage){
     .x1 = 0,
     .y1 = 0,
@@ -404,6 +417,9 @@ static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) 
 }
 
 static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
+  if (risc->fb_color && address < IOStart && address >= PaletteStart) {
+    return risc->Palette[(address - PaletteStart)/4];
+  }
   switch (address - IOStart) {
     case 0: {
       // Millisecond counter
@@ -483,6 +499,16 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
 }
 
 static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
+  if (risc->fb_color && address < IOStart && address >= PaletteStart) {
+    risc->Palette[(address - PaletteStart)/4] = value;
+    risc->damage = (struct Damage){
+      .x1 = 0,
+      .y1 = 0,
+      .x2 = risc->fb_width - 1,
+      .y2 = risc->fb_height - 1
+    };
+    return;
+  }
   switch (address - IOStart) {
     case 4: {
       // LED control
@@ -566,6 +592,10 @@ void risc_keyboard_input(struct RISC *risc, uint8_t *scancodes, uint32_t len) {
 
 uint32_t *risc_get_framebuffer_ptr(struct RISC *risc) {
   return &risc->RAM[DisplayStart/4];
+}
+
+uint32_t *risc_get_palette_ptr(struct RISC *risc) {
+  return risc->Palette;
 }
 
 struct Damage risc_get_framebuffer_damage(struct RISC *risc) {
