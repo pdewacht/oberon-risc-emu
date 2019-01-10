@@ -49,9 +49,11 @@ struct RISC {
 
   int fb_width;   // words
   int fb_height;  // lines
+  uint32_t mlim;  // bytes
+  uint32_t fb_start;   // byte address
   struct Damage damage;
 
-  uint32_t RAM[MemWords];
+  uint32_t *RAM;  //[MemWords];
   uint32_t ROM[ROMWords];
 };
 
@@ -79,8 +81,6 @@ static const uint32_t bootloader[ROMWords] = {
 struct RISC *risc_new() {
   struct RISC *risc = calloc(1, sizeof(*risc));
   memcpy(risc->ROM, bootloader, sizeof(risc->ROM));
-  risc_screen_size_hack(risc, RISC_FRAMEBUFFER_WIDTH, RISC_FRAMEBUFFER_HEIGHT);
-  risc_reset(risc);
   return risc;
 }
 
@@ -106,7 +106,8 @@ void risc_set_switches(struct RISC *risc, int switches) {
   risc->switches = switches;
 }
 
-void risc_screen_size_hack(struct RISC *risc, int width, int height) {
+void risc_screen_and_mem_size_hack(struct RISC *risc, int width, int height, int memtotal) {
+
   risc->fb_width = width / 32;
   risc->fb_height = height;
   risc->damage = (struct Damage){
@@ -116,9 +117,21 @@ void risc_screen_size_hack(struct RISC *risc, int width, int height) {
     .y2 = risc->fb_height - 1
   };
 
-  risc->RAM[DisplayStart/4] = 0x53697A66;  // magic value 'SIZE'+1
-  risc->RAM[DisplayStart/4+1] = width;
-  risc->RAM[DisplayStart/4+2] = height;
+  if (memtotal != 0) {
+    risc->mlim = memtotal << 20 ; 
+    risc->fb_start = (risc->mlim) - ((width / 8 * height)+256);  // recreates original constants for 1M
+    risc->ROM[372]=0x61000000+(((risc->fb_start)-16) >> 16); 
+    risc->ROM[373]=0x41160000+(((risc->fb_start)-16) & 0x0000FFFF);
+    risc->ROM[376]=0x61000000+(((risc->mlim)/2) >> 16); 
+    risc->RAM=calloc(1,memtotal<<20);
+  }else{
+    risc->mlim=MemSize;
+    risc->fb_start = DisplayStart;
+    risc->RAM=calloc(4,MemWords);
+  }
+  risc->RAM[risc->fb_start/4] = 0x53697A66;  // magic value 'Size'+1
+  risc->RAM[risc->fb_start/4+1] = width;
+  risc->RAM[risc->fb_start/4+2] = height;
 }
 
 void risc_reset(struct RISC *risc) {
@@ -138,7 +151,7 @@ void risc_run(struct RISC *risc, int cycles) {
 
 static void risc_single_step(struct RISC *risc) {
   uint32_t ir;
-  if (risc->PC < MemWords) {
+  if (risc->PC < risc->mlim/4 ) {
     ir = risc->RAM[risc->PC];
   } else if (risc->PC >= ROMStart/4 && risc->PC < ROMStart/4 + ROMWords) {
     ir = risc->ROM[risc->PC - ROMStart/4];
@@ -349,7 +362,7 @@ static void risc_set_register(struct RISC *risc, int reg, uint32_t value) {
 }
 
 static uint32_t risc_load_word(struct RISC *risc, uint32_t address) {
-  if (address < MemSize) {
+  if (address < risc->mlim) {
     return risc->RAM[address/4];
   } else {
     return risc_load_io(risc, address);
@@ -381,18 +394,18 @@ static void risc_update_damage(struct RISC *risc, int w) {
 }
 
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value) {
-  if (address < DisplayStart) {
+  if (address < risc->fb_start) {
     risc->RAM[address/4] = value;
-  } else if (address < MemSize) {
+  } else if (address < risc->mlim) {
     risc->RAM[address/4] = value;
-    risc_update_damage(risc, address/4 - DisplayStart/4);
+    risc_update_damage(risc, address/4 - risc->fb_start/4);
   } else {
     risc_store_io(risc, address, value);
   }
 }
 
 static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) {
-  if (address < MemSize) {
+  if (address < risc->mlim) {
     uint32_t w = risc_load_word(risc, address);
     uint32_t shift = (address & 3) * 8;
     w &= ~(0xFFu << shift);
@@ -565,7 +578,7 @@ void risc_keyboard_input(struct RISC *risc, uint8_t *scancodes, uint32_t len) {
 }
 
 uint32_t *risc_get_framebuffer_ptr(struct RISC *risc) {
-  return &risc->RAM[DisplayStart/4];
+  return &risc->RAM[risc->fb_start/4];
 }
 
 struct Damage risc_get_framebuffer_damage(struct RISC *risc) {

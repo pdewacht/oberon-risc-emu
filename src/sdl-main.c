@@ -114,6 +114,7 @@ int main (int argc, char *argv[]) {
   const char *serial_in = NULL;
   const char *serial_out = NULL;
   bool boot_from_serial = false;
+  bool defaultMemoryAndVideo = true;  
 
   int opt;
   while ((opt = getopt_long(argc, argv, "z:fLs:I:O:S", long_options, NULL)) != -1) {
@@ -134,13 +135,18 @@ int main (int argc, char *argv[]) {
         break;
       }
       case 's': {
-        int w, h;
-        if (sscanf(optarg, "%dx%d", &w, &h) != 2) {
-          usage();
+        int m, w, h;
+        if (sscanf(optarg, "%dM%dx%d", &m, &w, &h) != 3) {
+          if (sscanf(optarg, "%dx%d", &w, &h) != 2) {
+            usage();
+          }else{
+	    m=0;
+	  }
         }
         risc_rect.w = clamp(w, 32, MAX_WIDTH) & ~31;
         risc_rect.h = clamp(h, 32, MAX_HEIGHT);
-        risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
+        risc_screen_and_mem_size_hack(risc, risc_rect.w, risc_rect.h, m);
+        defaultMemoryAndVideo = false;
         break;
       }
       case 'I': {
@@ -161,6 +167,12 @@ int main (int argc, char *argv[]) {
       }
     }
   }
+  if (defaultMemoryAndVideo) {
+    risc_screen_and_mem_size_hack(risc, RISC_FRAMEBUFFER_WIDTH, RISC_FRAMEBUFFER_HEIGHT, RISC_MEMTOTAL);
+  }
+
+  risc_reset(risc);
+
 
   if (optind == argc - 1) {
     risc_set_spi(risc, 1, disk_new(argv[optind]));

@@ -8,7 +8,9 @@
 // This is the standard size of the framebuffer, can be overridden.
 #define RISC_FRAMEBUFFER_WIDTH 1024
 #define RISC_FRAMEBUFFER_HEIGHT 768
-
+#define RISC_MEMTOTAL 0 //megabytes of emulated RISC memory including the framebuffer
+                        //0 means unmodified framebuffer start, 1.5MB of main memory
+                        //otherwise framebuffer is adjusted to the end of main memory
 struct RISC;
 
 struct Damage {
@@ -21,7 +23,7 @@ void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial);
 void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi);
 void risc_set_clipboard(struct RISC *risc, const struct RISC_Clipboard *clipboard);
 void risc_set_switches(struct RISC *risc, int switches);
-void risc_screen_size_hack(struct RISC *risc, int width, int height);
+void risc_screen_and_mem_size_hack(struct RISC *risc, int width, int height, int memtotal);
 
 void risc_reset(struct RISC *risc);
 void risc_run(struct RISC *risc, int cycles);
