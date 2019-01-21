@@ -65,6 +65,7 @@ static struct option long_options[] = {
   { "zoom",             required_argument, NULL, 'z' },
   { "fullscreen",       no_argument,       NULL, 'f' },
   { "leds",             no_argument,       NULL, 'L' },
+  { "mem",              required_argument, NULL, 'm' },
   { "size",             required_argument, NULL, 's' },
   { "serial-in",        required_argument, NULL, 'I' },
   { "serial-out",       required_argument, NULL, 'O' },
@@ -88,6 +89,7 @@ static void usage() {
        "  --fullscreen          Start the emulator in full screen mode\n"
        "  --zoom REAL           Scale the display in windowed mode\n"
        "  --leds                Log LED state on stdout\n"
+       "  --mem MEGS            Set memory size\n"
        "  --size WIDTHxHEIGHT   Set framebuffer size\n"
        "  --boot-from-serial    Boot from serial line (disk image not required)\n"
        "  --serial-in FILE      Read serial input from FILE\n"
@@ -111,12 +113,14 @@ int main (int argc, char *argv[]) {
     .w = RISC_FRAMEBUFFER_WIDTH,
     .h = RISC_FRAMEBUFFER_HEIGHT
   };
+  bool size_option = false;
+  int mem_option = 0;
   const char *serial_in = NULL;
   const char *serial_out = NULL;
   bool boot_from_serial = false;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "z:fLs:I:O:S", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "z:fLm:s:I:O:S", long_options, NULL)) != -1) {
     switch (opt) {
       case 'z': {
         double x = strtod(optarg, 0);
@@ -133,6 +137,12 @@ int main (int argc, char *argv[]) {
         risc_set_leds(risc, &leds);
         break;
       }
+      case 'm': {
+        if (sscanf(optarg, "%d", &mem_option) != 1) {
+          usage();
+        }
+        break;
+      }
       case 's': {
         int w, h;
         if (sscanf(optarg, "%dx%d", &w, &h) != 2) {
@@ -140,7 +150,7 @@ int main (int argc, char *argv[]) {
         }
         risc_rect.w = clamp(w, 32, MAX_WIDTH) & ~31;
         risc_rect.h = clamp(h, 32, MAX_HEIGHT);
-        risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
+        size_option = true;
         break;
       }
       case 'I': {
@@ -160,6 +170,10 @@ int main (int argc, char *argv[]) {
         usage();
       }
     }
+  }
+
+  if (mem_option || size_option) {
+    risc_configure_memory(risc, mem_option, risc_rect.w, risc_rect.h);
   }
 
   if (optind == argc - 1) {

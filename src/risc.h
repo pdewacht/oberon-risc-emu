@@ -15,13 +15,13 @@ struct Damage {
   int x1, x2, y1, y2;
 };
 
-struct RISC *risc_new();
+struct RISC *risc_new(void);
+void risc_configure_memory(struct RISC *risc, int megabytes_ram, int screen_width, int screen_height);
 void risc_set_leds(struct RISC *risc, const struct RISC_LED *leds);
 void risc_set_serial(struct RISC *risc, const struct RISC_Serial *serial);
 void risc_set_spi(struct RISC *risc, int index, const struct RISC_SPI *spi);
 void risc_set_clipboard(struct RISC *risc, const struct RISC_Clipboard *clipboard);
 void risc_set_switches(struct RISC *risc, int switches);
-void risc_screen_size_hack(struct RISC *risc, int width, int height);
 
 void risc_reset(struct RISC *risc);
 void risc_run(struct RISC *risc, int cycles);

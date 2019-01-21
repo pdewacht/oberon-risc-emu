@@ -7,24 +7,22 @@
 #include "risc-fp.h"
 
 
-// Our memory layout is slightly different from the FPGA implementation.
-// The FPGA uses a 20-bit address bus and thus ignores the top 12 bits.
-// We use all 32 bits. This allows us to have more than 1 megabyte of
-// RAM.
+// Our memory layout is slightly different from the FPGA implementation:
+// The FPGA uses a 20-bit address bus and thus ignores the top 12 bits,
+// while we use all 32 bits. This allows us to have more than 1 megabyte
+// of RAM.
 //
-// We add an extra half megabyte. This is used to allow for framebuffers
-// larger than the normal 1024x768. A modified Dispay.Mod and Input.Mod
-// is needed to use this feature, this is included in the Oberon
-// directory.
-//
-// As we don't change DisplayStart, this extra memory is not useful for a
-// larger heap.
+// In the default configuration, the emulator is compatible with the
+// FPGA system. But If the user requests more memory, we move the
+// framebuffer to make room for a larger Oberon heap. This requires a
+// custom Display.Mod.
 
-#define MemSize      0x00180000
-#define MemWords     (MemSize / 4)
+
+#define DefaultMemSize      0x00100000
+#define DefaultDisplayStart 0x000E7F00
+
 #define ROMStart     0xFFFFF800
 #define ROMWords     512
-#define DisplayStart 0x000E7F00
 #define IOStart      0xFFFFFFC0
 
 
@@ -33,6 +31,9 @@ struct RISC {
   uint32_t R[16];
   uint32_t H;
   bool     Z, N, C, V;
+
+  uint32_t mem_size;
+  uint32_t display_start;
 
   uint32_t progress;
   uint32_t current_tick;
@@ -51,7 +52,7 @@ struct RISC {
   int fb_height;  // lines
   struct Damage damage;
 
-  uint32_t RAM[MemWords];
+  uint32_t *RAM;
   uint32_t ROM[ROMWords];
 };
 
@@ -78,10 +79,60 @@ static const uint32_t bootloader[ROMWords] = {
 
 struct RISC *risc_new() {
   struct RISC *risc = calloc(1, sizeof(*risc));
+  risc->mem_size = DefaultMemSize;
+  risc->display_start = DefaultDisplayStart;
+  risc->fb_width = RISC_FRAMEBUFFER_WIDTH / 32;
+  risc->fb_height = RISC_FRAMEBUFFER_HEIGHT;
+  risc->damage = (struct Damage){
+    .x1 = 0,
+    .y1 = 0,
+    .x2 = risc->fb_width - 1,
+    .y2 = risc->fb_height - 1
+  };
+  risc->RAM = calloc(1, risc->mem_size);
   memcpy(risc->ROM, bootloader, sizeof(risc->ROM));
-  risc_screen_size_hack(risc, RISC_FRAMEBUFFER_WIDTH, RISC_FRAMEBUFFER_HEIGHT);
   risc_reset(risc);
   return risc;
+}
+
+void risc_configure_memory(struct RISC *risc, int megabytes_ram, int screen_width, int screen_height) {
+  if (megabytes_ram < 1) {
+    megabytes_ram = 1;
+  }
+  if (megabytes_ram > 32) {
+    megabytes_ram = 32;
+  }
+
+  risc->display_start = megabytes_ram << 20;
+  risc->mem_size = risc->display_start + (screen_width * screen_height) / 8;
+  risc->fb_width = screen_width / 32;
+  risc->fb_height = screen_height;
+  risc->damage = (struct Damage){
+    .x1 = 0,
+    .y1 = 0,
+    .x2 = risc->fb_width - 1,
+    .y2 = risc->fb_height - 1
+  };
+
+  free(risc->RAM);
+  risc->RAM = calloc(1, risc->mem_size);
+
+  // Patch the new constants in the bootloader.
+  uint32_t mem_lim = risc->display_start - 16;
+  risc->ROM[372] = 0x61000000 + (mem_lim >> 16);
+  risc->ROM[373] = 0x41160000 + (mem_lim & 0x0000FFFF);
+  uint32_t stack_org = risc->display_start / 2;
+  risc->ROM[376] = 0x61000000 + (stack_org >> 16);
+
+  // Inform the display driver of the framebuffer layout.
+  // This isn't a very pretty mechanism, but this way our disk images
+  // should still boot on the standard FPGA system.
+  risc->RAM[DefaultDisplayStart/4] = 0x53697A67;
+  risc->RAM[DefaultDisplayStart/4+1] = screen_width;
+  risc->RAM[DefaultDisplayStart/4+2] = screen_height;
+  risc->RAM[DefaultDisplayStart/4+3] = risc->display_start;
+
+  risc_reset(risc);
 }
 
 void risc_set_leds(struct RISC *risc, const struct RISC_LED *leds) {
@@ -106,21 +157,6 @@ void risc_set_switches(struct RISC *risc, int switches) {
   risc->switches = switches;
 }
 
-void risc_screen_size_hack(struct RISC *risc, int width, int height) {
-  risc->fb_width = width / 32;
-  risc->fb_height = height;
-  risc->damage = (struct Damage){
-    .x1 = 0,
-    .y1 = 0,
-    .x2 = risc->fb_width - 1,
-    .y2 = risc->fb_height - 1
-  };
-
-  risc->RAM[DisplayStart/4] = 0x53697A66;  // magic value 'SIZE'+1
-  risc->RAM[DisplayStart/4+1] = width;
-  risc->RAM[DisplayStart/4+2] = height;
-}
-
 void risc_reset(struct RISC *risc) {
   risc->PC = ROMStart/4;
 }
@@ -138,7 +174,7 @@ void risc_run(struct RISC *risc, int cycles) {
 
 static void risc_single_step(struct RISC *risc) {
   uint32_t ir;
-  if (risc->PC < MemWords) {
+  if (risc->PC < risc->mem_size / 4) {
     ir = risc->RAM[risc->PC];
   } else if (risc->PC >= ROMStart/4 && risc->PC < ROMStart/4 + ROMWords) {
     ir = risc->ROM[risc->PC - ROMStart/4];
@@ -349,7 +385,7 @@ static void risc_set_register(struct RISC *risc, int reg, uint32_t value) {
 }
 
 static uint32_t risc_load_word(struct RISC *risc, uint32_t address) {
-  if (address < MemSize) {
+  if (address < risc->mem_size) {
     return risc->RAM[address/4];
   } else {
     return risc_load_io(risc, address);
@@ -381,18 +417,18 @@ static void risc_update_damage(struct RISC *risc, int w) {
 }
 
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value) {
-  if (address < DisplayStart) {
+  if (address < risc->display_start) {
     risc->RAM[address/4] = value;
-  } else if (address < MemSize) {
+  } else if (address < risc->mem_size) {
     risc->RAM[address/4] = value;
-    risc_update_damage(risc, address/4 - DisplayStart/4);
+    risc_update_damage(risc, address/4 - risc->display_start/4);
   } else {
     risc_store_io(risc, address, value);
   }
 }
 
 static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) {
-  if (address < MemSize) {
+  if (address < risc->mem_size) {
     uint32_t w = risc_load_word(risc, address);
     uint32_t shift = (address & 3) * 8;
     w &= ~(0xFFu << shift);
@@ -565,7 +601,7 @@ void risc_keyboard_input(struct RISC *risc, uint8_t *scancodes, uint32_t len) {
 }
 
 uint32_t *risc_get_framebuffer_ptr(struct RISC *risc) {
-  return &risc->RAM[DisplayStart/4];
+  return &risc->RAM[risc->display_start/4];
 }
 
 struct Damage risc_get_framebuffer_damage(struct RISC *risc) {

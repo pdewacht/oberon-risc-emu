@@ -82,6 +82,7 @@ in the [Project Norebo] repository.
 Usage: `risc [options] disk-image.dsk`
 
 * `--fullscreen` Start the emulator in fullscreen mode.
+* `--mem <megs>` Give the system more than 1 megabyte of RAM.
 * `--size <width>x<height>` Use a non-standard window size.
 * `--leds` Print the LED changes to stdout. Useful if you're working on the kernel,
   noisy otherwise.
