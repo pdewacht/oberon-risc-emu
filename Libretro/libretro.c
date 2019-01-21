@@ -226,7 +226,7 @@ bool retro_load_game(const struct retro_game_info *game)
 		_framebuffer.height *
 		sizeof(uint16_t));
 
-	risc_screen_size_hack(_risc, _framebuffer.width, _framebuffer.height);
+	risc_configure_memory(_risc, 1, _framebuffer.width, _framebuffer.height);
 
 	_ms_counter = 1;
 	_mouse_x = 0;
