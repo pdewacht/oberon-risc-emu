@@ -299,7 +299,7 @@ void retro_run(void)
 		for (int line = damage.y2; line >= damage.y1; line--) {
 			int in_line = line * (_framebuffer.width / 32);
 
-			int out_idx = ((_framebuffer.height-line) * _framebuffer.width)
+			int out_idx = ((_framebuffer.height-line-1) * _framebuffer.width)
 			            + damage.x1 * 32;
 
 			for (int col = damage.x1; col <= damage.x2; col++) {
