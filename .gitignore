@@ -1,9 +1,9 @@
 risc
 *.img
-/Libretro/libretro.o
-/Libretro/oberon_libretro.so
+*.so
 /src/disk.o
 /src/pclink.o
 /src/raw-serial.o
 /src/risc-fp.o
 /src/risc.o
+/Libretro/libretro.o
