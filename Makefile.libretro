@@ -39,7 +39,7 @@ LIBS		+= -lm
 endif
 endif
 
-CORE_DIR := ..
+CORE_DIR := .
 
 GIT_VERSION := " $(shell cd $(CORE_DIR); git log -1 --pretty='%cd %h' --date=short || echo unknown)"
 CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
@@ -48,6 +48,8 @@ ifeq ($(LAGFIX),1)
    CFLAGS   += -DLAGFIX
 endif
 
+LINK_SCRIPT := $(CORE_DIR)/Libretro/link.T
+
 # Genode
 ifeq ($(platform), genode)
    TARGET  := $(TARGET_NAME)_libretro.lib.so
@@ -55,7 +57,7 @@ ifeq ($(platform), genode)
    CFLAGS += -D__GENODE__
    CFLAGS += $(shell pkg-config --cflags $(PKG_CONFIG_LIBS))
 
-   LDFLAGS += -shared --version-script=link.T
+   LDFLAGS += -shared --version-script=$(CORE_DIR)/Libretro/link.T
    LDFLAGS += $(shell pkg-config --libs $(PKG_CONFIG_LIBS))
 
    CC = /usr/local/genode-gcc/bin/genode-x86-gcc
@@ -72,7 +74,7 @@ else ifneq (,$(findstring unix,$(platform)))
    CC = gcc
    SHARED := -shared -z defs
    else
-   SHARED := -shared --version-script=link.T
+   SHARED := -shared --version-script=$(LINK_SCRIPT)
    endif
    ifneq ($(findstring Haiku,$(shell uname -a)),)
       LIBS :=
@@ -139,7 +141,7 @@ else ifeq ($(platform), theos_ios)
 else ifeq ($(platform), qnx)
    TARGET := $(TARGET_NAME)_libretro_$(platform).so
    fpic := -fPIC
-   SHARED := -shared --version-script=link.T
+   SHARED := -shared --version-script=$(LINK_SCRIPT)
    CC = qcc -Vgcc_notarmv7le
    AR = QCC -Vgcc_ntoarmv7le
    CFLAGS += -D__BLACKBERRY_QNX__
@@ -424,7 +426,7 @@ CFLAGS += -D_CRT_SECURE_NO_DEPRECATE
 else
    TARGET := $(TARGET_NAME)_libretro.dll
    CC =? gcc
-   SHARED := -shared -static-libgcc -s --version-script=link.T
+   SHARED := -shared -static-libgcc -s --version-script=$(LINK_SCRIPT)
 endif
 
 ifeq ($(DEBUG), 1)
@@ -451,7 +453,7 @@ else
    endif
 endif
 
-include Makefile.common
+include $(CORE_DIR)/Libretro/Makefile.common
 
 OBJECTS := $(SOURCES_C:.c=.o)
 
@@ -513,3 +515,8 @@ endif
 clean:
 	rm -f $(OBJECTS) $(TARGET)
 endif
+
+.PHONY: test
+
+test: $(TARGET)
+	retroarch -L $< $(CORE_DIR)/DiskImage/Oberon-2019-01-21.dsk
