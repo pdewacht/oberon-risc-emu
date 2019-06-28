@@ -1,0 +1,3 @@
+TARGET_NAME=oberon
+CORE_DIR=$(TUP_CWD)/..
+include_rules
