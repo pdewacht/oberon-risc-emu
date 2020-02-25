@@ -136,8 +136,20 @@ void _keyboard_cb(bool down, unsigned keycode,
 	risc_keyboard_input(_risc, buf, i);
 }
 
+static const struct retro_controller_description ports_keyboard[] =
+{
+	{ "Keyboard + Mouse", RETRO_DEVICE_KEYBOARD },
+	{ 0 },
+};
+static const struct retro_controller_info ports[] = {
+        { ports_keyboard, 1 },
+        { 0 },
+};
+
 void retro_set_environment(retro_environment_t cb) {
-	_environ_cb = cb; }
+	_environ_cb = cb;
+	_environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
+}
 
 void retro_set_video_refresh(retro_video_refresh_t cb) {
 	_video_cb = cb; }
