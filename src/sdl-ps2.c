@@ -18,7 +18,7 @@ enum k_type {
 
 static struct k_info keymap[SDL_NUM_SCANCODES];
 
-int ps2_encode(int sdl_scancode, bool make, uint8_t out[static MAX_PS2_CODE_LEN]) {
+int ps2_encode(int sdl_scancode, bool make, uint8_t out[STATIC_BUFSIZ MAX_PS2_CODE_LEN]) {
   int i = 0;
   struct k_info info = keymap[sdl_scancode];
   switch (info.type) {

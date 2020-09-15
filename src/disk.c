@@ -6,6 +6,10 @@
 #include <errno.h>
 #include "disk.h"
 
+#ifndef STATIC_BUFSIZ
+#define STATIC_BUFSIZ static
+#endif
+
 enum DiskState {
   diskCommand,
   diskRead,
@@ -29,12 +33,13 @@ struct Disk {
 };
 
 
+
 static uint32_t disk_read(const struct RISC_SPI *spi);
 static void disk_write(const struct RISC_SPI *spi, uint32_t value);
 static void disk_run_command(struct Disk *disk);
 static void seek_sector(FILE *f, uint32_t secnum);
-static void read_sector(FILE *f, uint32_t buf[static 128]);
-static void write_sector(FILE *f, uint32_t buf[static 128]);
+static void read_sector(FILE *f, uint32_t buf[STATIC_BUFSIZ 128]);
+static void write_sector(FILE *f, uint32_t buf[STATIC_BUFSIZ 128]);
 
 
 struct RISC_SPI *disk_new(const char *filename) {
@@ -160,7 +165,7 @@ static void seek_sector(FILE *f, uint32_t secnum) {
   }
 }
 
-static void read_sector(FILE *f, uint32_t buf[static 128]) {
+static void read_sector(FILE *f, uint32_t buf[STATIC_BUFSIZ 128]) {
   uint8_t bytes[512] = { 0 };
   if (f) {
     fread(bytes, 512, 1, f);
@@ -173,7 +178,7 @@ static void read_sector(FILE *f, uint32_t buf[static 128]) {
   }
 }
 
-static void write_sector(FILE *f, uint32_t buf[static 128]) {
+static void write_sector(FILE *f, uint32_t buf[STATIC_BUFSIZ 128]) {
   if (f) {
     uint8_t bytes[512];
     for (int i = 0; i < 128; i++) {

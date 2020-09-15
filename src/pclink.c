@@ -3,7 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <unistd.h>
+#else
+#include <io.h>
+#endif
 #include <fcntl.h>
 #include "pclink.h"
 
