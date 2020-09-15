@@ -1,0 +1,24 @@
+## This file explains how to build Oberon with Visual C++ (2019 tested). 
+
+Familiarity with Windows development using Visual Studio is assumed.
+
+Open "x64 Native" command prompt for Visual Studio.
+
+  set VCPKG_DEFAULT_TRIPLET=x64-windows
+
+(getopt-win32 will unfortunately not build static libs, so you cannot use static vcpkgs)
+
+Install SDL2 and getopt with vcpkg
+
+  vcpkg install SDL2
+  vcpkg install getopt
+
+Check Makefile.vc  for your vcpkg install path and update accordingly
+
+get gnumake from your favorite unix tools for Windows package (or https://github.com/amoldeshpande/make/releases)
+
+
+  gnumake -f Makefile.vc
+
+
+This should create `risc.exe` which you can run as usual.
