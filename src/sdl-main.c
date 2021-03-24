@@ -17,6 +17,7 @@
 
 #define CPU_HZ 25000000
 #define FPS 60
+#define MSPF 1000/FPS
 
 static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 //static uint32_t BLACK = 0x000000, WHITE = 0xFFFFFF;
@@ -336,18 +337,19 @@ int main (int argc, char *argv[]) {
     }
 
     risc_set_time(risc, frame_start);
-    risc_run(risc, CPU_HZ / FPS);
-
+    for (int i=0; i<MSPF; i++) {
+      risc_run(risc, CPU_HZ / 1000 * MSPF);
+      uint32_t frame_end = SDL_GetTicks();
+      int delay = frame_start + MSPF - frame_end;
+      if (delay > 0) {
+        SDL_Delay(delay);
+      }
+      risc_trigger_interrupt(risc);
+    }
     update_texture(risc, texture, &risc_rect);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
     SDL_RenderPresent(renderer);
-
-    uint32_t frame_end = SDL_GetTicks();
-    int delay = frame_start + 1000/FPS - frame_end;
-    if (delay > 0) {
-      SDL_Delay(delay);
-    }
   }
   return 0;
 }

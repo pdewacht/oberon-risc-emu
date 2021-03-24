@@ -30,7 +30,11 @@ struct RISC {
   uint32_t PC;
   uint32_t R[16];
   uint32_t H;
-  bool     Z, N, C, V;
+  uint32_t SPC;                 // SPC: Saved PC
+  bool     SZ, SN, SC, SV;      //    : Saved Condition Codes
+  bool     Z, N, C, V, I, E, P; //   I: Interrupt mode
+                                //   E: Interrupts enabled
+                                //   P: Interrupt pending
 
   uint32_t mem_size;
   uint32_t display_start;
@@ -161,6 +165,10 @@ void risc_reset(struct RISC *risc) {
   risc->PC = ROMStart/4;
 }
 
+void risc_trigger_interrupt(struct RISC *risc) {
+  risc->P = true;
+}
+
 void risc_run(struct RISC *risc, int cycles) {
   risc->progress = 20;
   // The progress value is used to detect that the RISC cpu is busy
@@ -174,6 +182,15 @@ void risc_run(struct RISC *risc, int cycles) {
 
 static void risc_single_step(struct RISC *risc) {
   uint32_t ir;
+  if (risc->P && risc->E && ! risc->I ) {
+    risc->SPC = risc->PC;
+    risc->SZ = risc->Z;
+    risc->SN = risc->N;
+    risc->SC = risc->C;
+    risc->SV = risc->V;
+    risc->I = true;
+    risc->PC = 1;
+  }
   if (risc->PC < risc->mem_size / 4) {
     ir = risc->RAM[risc->PC];
   } else if (risc->PC >= ROMStart/4 && risc->PC < ROMStart/4 + ROMWords) {
@@ -359,7 +376,23 @@ static void risc_single_step(struct RISC *risc) {
       case 4: t ^= risc->C | risc->Z; break;
       case 5: t ^= risc->N ^ risc->V; break;
       case 6: t ^= (risc->N ^ risc->V) | risc->Z; break;
-      case 7: t ^= true; break;
+      case 7: t ^= true; 
+              if (((ir & ubit) == 0) && ((ir & 0x00000010) == 0x10) && risc->I) { // IRET
+                 risc->PC = risc->SPC;
+                 risc->Z = risc->SZ;
+                 risc->N = risc->SN;
+                 risc->C = risc->SC;
+                 risc->V = risc->SV;
+                 risc->I = false;
+                 risc->P = false;
+                 return;
+              }else{
+                if (((ir & ubit) == 0) && ((ir & 0x00000020) == 0x20)) { // STI and CLI
+                   risc->E = (ir & 1) == 1 ? true: false;
+                   return;
+                }
+              }
+              break;
       default: abort();  // unreachable
     }
     if (t) {
