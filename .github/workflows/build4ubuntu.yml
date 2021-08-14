@@ -1,0 +1,14 @@
+name: build4ubuntu
+on: [push]
+jobs:
+  ubuntu-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build
+        run: |
+          pwd
+          ls
+          which make
