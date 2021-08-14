@@ -1,7 +1,7 @@
 name: build4ubuntu
 on: [push]
 jobs:
-  ubuntu-build:
+  Ubuntu-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,6 +19,23 @@ jobs:
 
       - name: Test
         run: |
-          ./risc --help
+          ls -alh ./risc
 
+  MacOS-build:
+    runs-on: macOS-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: | 
+          brew install SDL2
+
+      - name: Build
+        run: |
+          make
+
+      - name: Test
+        run: |
+          ls -alh ./risc      
 
