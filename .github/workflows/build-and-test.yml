@@ -1,4 +1,4 @@
-name: build4ubuntu
+name: Build and Test
 on: [push]
 jobs:
   Ubuntu-build:
@@ -38,4 +38,18 @@ jobs:
       - name: Test
         run: |
           ls -alh ./risc      
+
+  Windows-build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build
+        run: |
+          make
+
+      - name: Test
+        run: |
+          dir
 
