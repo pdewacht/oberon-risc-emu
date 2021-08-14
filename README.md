@@ -1,4 +1,6 @@
-# Oberon RISC Emulator
+# Oberon RISC Emulator Integrated Oberon Fork
+
+Forked from [Peter De Wachter's RISC emulator in C](https://github.com/pdewacht/oberon-risc-emu) with miscelaneous features added
 
 This is an emulator for the Oberon RISC machine. For more information,
 [see Niklaus Wirth's site](https://www.inf.ethz.ch/personal/wirth/). For
