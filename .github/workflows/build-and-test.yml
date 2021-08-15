@@ -52,11 +52,12 @@ jobs:
           
       - name: Build
         run: |
-          mv Makefile Makefile.bak
+          cd src
           mv Makefile.vc Makefile
           make
 
       - name: Test
         run: |
           dir
+          dir src
 
