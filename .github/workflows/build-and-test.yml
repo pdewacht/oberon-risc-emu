@@ -66,7 +66,7 @@ jobs:
 
           cd src
           mv Makefile.vc Makefile
-          cl -c -D_WIN32 -Zi -W4 -WX -D_CRT_SECURE_NO_WARNINGS -MD -DSTATIC_BUFSIZ= -DS_IRUSR=0 -DS_IWUSR=0 -wd4146  -wd4100 -wd4996 -nologo sdl-main.c
+          cl -c -D_WIN32 -Zi -W4 -WX -D_CRT_SECURE_NO_WARNINGS -MD -DSTATIC_BUFSIZ= -DS_IRUSR=0 -DS_IWUSR=0 -wd4146  -wd4100 -wd4996 -nologo sdl-main.c disk.c pclink.c raw-serial.c risc.c risc-fp.c sdl-clipboard.c sdl-ps2.c /I .
 
       - name: Test
         run: |
