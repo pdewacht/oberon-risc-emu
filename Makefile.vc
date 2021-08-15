@@ -20,12 +20,17 @@ RISC_SOURCE = \
 
 all: risc.exe
 
+XOBJS:= $(patsubst %.c,%.obj,$(filter %.c, $(RISC_SOURCE)) )
+
 OBJS:= $(patsubst %.c,%.obj,$(filter %.c, $(RISC_SOURCE)) )
 
 src/%.obj:src/%.c
 	$(CC) -c  $(RISC_CFLAGS) $< -Fo$@
 
-risc.exe:$(OBJS)
+risc.exe:$(RISC_SOURCE)
+	$(CC) -c $(RISC_CFLAGS) src/sdl-main.c
+	dir
+	dir src
 	link -debug:full $(OBJS) sdl2main.lib  sdl2.lib getopt.lib -SUBSYSTEM:WINDOWS -out:$@ 
 
 clean:
