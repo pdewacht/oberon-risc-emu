@@ -4,9 +4,9 @@ CFLAGS = -D_WIN32 -Zi -W4 -WX -D_CRT_SECURE_NO_WARNINGS -MD \
 		-wd4146  -wd4100 -wd4996 -nologo
 
 
-VCPKG_BASE = h:\github\vcpkg\installed\x64-windows
 
-RISC_CFLAGS = $(CFLAGS)  -I $(VCPKG_BASE)\include\SDL2 -I $(VCPKG_BASE)\include
+
+RISC_CFLAGS = $(CFLAGS)  
 
 RISC_SOURCE = \
 	src/sdl-main.c \
@@ -26,7 +26,7 @@ src/%.obj:src/%.c
 	$(CC) -c  $(RISC_CFLAGS) $< -Fo$@
 
 risc.exe:$(OBJS)
-	link -debug:full $(OBJS) sdl2main.lib  sdl2.lib getopt.lib -libpath:$(VCPKG_BASE)\lib -libpath:$(VCPKG_BASE)\lib\manual-link -SUBSYSTEM:WINDOWS -out:$@ 
+	link -debug:full $(OBJS) sdl2main.lib  sdl2.lib getopt.lib -SUBSYSTEM:WINDOWS -out:$@ 
 
 clean:
 	-del /s *.obj 
