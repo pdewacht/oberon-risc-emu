@@ -52,7 +52,9 @@ jobs:
           
       - name: Build
         run: |
-          cmake Makefile.vc
+          mv Makefile Makefile.bak
+          mv Makefile.vc Makefile
+          make
 
       - name: Test
         run: |
