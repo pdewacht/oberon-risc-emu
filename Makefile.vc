@@ -1,0 +1,34 @@
+CC = cl
+CFLAGS = -D_WIN32 -Zi -W4 -WX -D_CRT_SECURE_NO_WARNINGS -MD \
+		-DSTATIC_BUFSIZ= -DS_IRUSR=0 -DS_IWUSR=0 \
+		-wd4146  -wd4100 -wd4996 -nologo
+
+
+VCPKG_BASE = h:\github\vcpkg\installed\x64-windows
+
+RISC_CFLAGS = $(CFLAGS)  -I $(VCPKG_BASE)\include\SDL2 -I $(VCPKG_BASE)\include
+
+RISC_SOURCE = \
+	src/sdl-main.c \
+	src/sdl-ps2.c src/sdl-ps2.h \
+	src/risc.c src/risc.h src/risc-boot.inc \
+	src/risc-fp.c src/risc-fp.h \
+	src/disk.c src/disk.h \
+	src/pclink.c src/pclink.h \
+	src/raw-serial.c src/raw-serial.h \
+	src/sdl-clipboard.c src/sdl-clipboard.h
+
+all: risc.exe
+
+OBJS:= $(patsubst %.c,%.obj,$(filter %.c, $(RISC_SOURCE)) )
+
+src/%.obj:src/%.c
+	$(CC) -c  $(RISC_CFLAGS) $< -Fo$@
+
+risc.exe:$(OBJS)
+	link -debug:full $(OBJS) sdl2main.lib  sdl2.lib getopt.lib -libpath:$(VCPKG_BASE)\lib -libpath:$(VCPKG_BASE)\lib\manual-link -SUBSYSTEM:WINDOWS -out:$@ 
+
+clean:
+	-del /s *.obj 
+	-del *.exe
+	-del *.pdb
