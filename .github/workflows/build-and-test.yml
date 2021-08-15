@@ -45,9 +45,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Build
+      - name: Install Dependencies
         run: |
-          make
+          vcpkg install SDL2
+          vcpkg install getopt
+          
 
       - name: Test
         run: |
