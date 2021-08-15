@@ -50,6 +50,9 @@ jobs:
           vcpkg install SDL2
           vcpkg install getopt
           
+      - name: Build
+        run: |
+          cmake Makefile.vc
 
       - name: Test
         run: |
