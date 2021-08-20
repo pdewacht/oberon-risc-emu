@@ -39,7 +39,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        os: [ubuntu-latest, macOS-latest]
 
     steps:
       - name: Checkout
@@ -71,11 +71,6 @@ jobs:
           brew install SDL2
           make
           cp ./risc dist/osx-risc
-
-      - if: matrix.os == 'windows-latest'
-        name: Install windows dependencies and build
-        run: |
-          type "placeholder"
 
       - name: Load Release URL File from release job
         uses: actions/download-artifact@v1

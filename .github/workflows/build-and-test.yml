@@ -39,37 +39,3 @@ jobs:
         run: |
           ls -alh ./risc      
 
-  Windows-build:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Install Dependencies
-        run: |
-          vcpkg install SDL2
-          vcpkg install getopt
-          
-      - name: Build
-        shell: pwsh
-        run: |
-          ${VCPKG_INSTALLED} = "${env:VCPKG_ROOT}/installed/${{matrix.config.arch}}-${{matrix.config.sys}}"
-          ${HUNSPELL_SRC}    = "${VCPKG_INSTALLED}/include"
-          ${HUNSPELL_LIB}    = "${VCPKG_INSTALLED}/lib"
-          Write-Output "VCPKG_INSTALLED_DIR=${VCPKG_INSTALLED}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-          ${VS_INST_PATH} = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
-          Write-Output "  <-> VS Install Path: ${VS_INST_PATH}"
-          Import-Module ${VS_INST_PATH}/Common7/Tools/Microsoft.VisualStudio.DevShell.dll
-          Enter-VsDevShell -VsInstallPath ${VS_INST_PATH} -SkipAutomaticLocation -DevCmdArguments '-arch=${{matrix.config.arch}} -no_logo'
-          ${MAKE_CMD} = "${env:JOM_DIR}/jom"
-
-          cd src
-          mv Makefile.vc Makefile
-          cl -c -D_WIN32 -Zi -W4 -WX -D_CRT_SECURE_NO_WARNINGS -MD -DSTATIC_BUFSIZ= -DS_IRUSR=0 -DS_IWUSR=0 -wd4146  -wd4100 -wd4996 -nologo sdl-main.c disk.c pclink.c raw-serial.c risc.c risc-fp.c sdl-clipboard.c sdl-ps2.c /I .
-
-      - name: Test
-        run: |
-          dir
-          dir src
-
