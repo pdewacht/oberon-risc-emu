@@ -63,14 +63,14 @@ jobs:
           sudo apt-get update -y -qq
           sudo apt-get install libsdl2-dev
           make
-          cp ./risc dist/ubuntu-risc
+          cp ./risc dist/risc-ubuntu-latest
 
       - if: matrix.os == 'macOS-latest'
         name: Install macOS dependencies and build
         run: | 
           brew install SDL2
           make
-          cp ./risc dist/osx-risc
+          cp ./risc dist/risc-macOS-latest
 
       - name: Load Release URL File from release job
         uses: actions/download-artifact@v1
@@ -78,7 +78,7 @@ jobs:
           name: release_url
 
       - name: Set binary path name
-        run: echo "BINARY_PATH=./dist/${{ env.EXT }}" >> $GITHUB_ENV
+        run: echo "BINARY_PATH=./dist/risc-${{ matrix.os }}" >> $GITHUB_ENV
 
       - name: Get Release File Name & Upload URL
         id: get_release_info
@@ -93,7 +93,7 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: ${{ env.BINARY_PATH }}
-          asset_name: stan-${{ steps.tag.outputs.tag }}-${{ runner.os }}-ghc-${{ matrix.ghc }}${{ env.EXT }}
+          asset_name: stan-${{ steps.tag.outputs.tag }}-risc-${{ runner.os }}
           asset_content_type: application/octet-stream
 
           
