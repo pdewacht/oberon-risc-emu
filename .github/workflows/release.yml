@@ -93,7 +93,7 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: ${{ env.BINARY_PATH }}
-          asset_name: stan-${{ steps.tag.outputs.tag }}-risc-${{ runner.os }}
+          asset_name: risc-on-${{ runner.os }}
           asset_content_type: application/octet-stream
 
           
