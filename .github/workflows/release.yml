@@ -78,7 +78,7 @@ jobs:
           name: release_url
 
       - name: Set binary path name
-        run: echo "::set-env name=BINARY_PATH::./dist/stan${{ env.EXT }}"
+        run: echo "BINARY_PATH=./dist/${{ env.EXT }}" >> $GITHUB_ENV
 
       - name: Get Release File Name & Upload URL
         id: get_release_info
