@@ -134,7 +134,7 @@ int main (int argc, char *argv[]) {
       }
       case 'V': {
         fullscreen = true;
-	printf("1.1.1\n");
+	printf("2021.8.31\n");
 	exit(0);
         break;
       }
