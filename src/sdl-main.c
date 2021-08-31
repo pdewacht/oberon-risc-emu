@@ -63,6 +63,7 @@ struct KeyMapping key_map[] = {
 };
 
 static struct option long_options[] = {
+  { "version",          no_argument,       NULL, 'V' },
   { "zoom",             required_argument, NULL, 'z' },
   { "fullscreen",       no_argument,       NULL, 'f' },
   { "leds",             no_argument,       NULL, 'L' },
@@ -87,6 +88,7 @@ static void usage() {
   puts("Usage: risc [OPTIONS...] DISK-IMAGE\n"
        "\n"
        "Options:\n"
+       "  --version             Print the version of the emulator\n"
        "  --fullscreen          Start the emulator in full screen mode\n"
        "  --zoom REAL           Scale the display in windowed mode\n"
        "  --leds                Log LED state on stdout\n"
@@ -121,13 +123,19 @@ int main (int argc, char *argv[]) {
   bool boot_from_serial = false;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "z:fLm:s:I:O:S", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "z:fLmV:s:I:O:S", long_options, NULL)) != -1) {
     switch (opt) {
       case 'z': {
         double x = strtod(optarg, 0);
         if (x > 0) {
           zoom = x;
         }
+        break;
+      }
+      case 'V': {
+        fullscreen = true;
+	printf("1.1.1\n");
+	exit(0);
         break;
       }
       case 'f': {
