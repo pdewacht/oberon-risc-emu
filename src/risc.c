@@ -584,6 +584,11 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
       risc->spi_selected = value & 3;
       break;
     }
+    case 32: {
+      // halt with value
+      exit(value);
+      break;
+    }
     case 40: {
       // Clipboard control
       if (risc->clipboard) {
