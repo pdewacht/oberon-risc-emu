@@ -343,10 +343,14 @@ int main (int argc, char *argv[]) {
         }
       }
     }
-
+    int sd = 0;
     risc_set_time(risc, frame_start);
     for (int i=0; i<MSPF; i++) {
-      risc_run(risc, CPU_HZ / 1000 * MSPF);
+      sd = risc_run(risc, CPU_HZ / 1000 * MSPF);
+      if(sd == 1){
+	SDL_Quit();
+	exit(0);
+      }
       uint32_t frame_end = SDL_GetTicks();
       int delay = frame_start + MSPF - frame_end;
       if (delay > 0) {

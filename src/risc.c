@@ -39,6 +39,7 @@ struct RISC {
   uint32_t mem_size;
   uint32_t display_start;
 
+  uint32_t shutdown;
   uint32_t progress;
   uint32_t current_tick;
   uint32_t mouse;
@@ -162,6 +163,7 @@ void risc_set_switches(struct RISC *risc, int switches) {
 }
 
 void risc_reset(struct RISC *risc) {
+  risc->shutdown = 0;
   risc->PC = ROMStart/4;
 }
 
@@ -169,15 +171,16 @@ void risc_trigger_interrupt(struct RISC *risc) {
   risc->P = true;
 }
 
-void risc_run(struct RISC *risc, int cycles) {
+int risc_run(struct RISC *risc, int cycles) {
   risc->progress = 20;
   // The progress value is used to detect that the RISC cpu is busy
   // waiting on the millisecond counter or on the keyboard ready
   // bit. In that case it's better to just pause emulation until the
   // next frame.
-  for (int i = 0; i < cycles && risc->progress; i++) {
+  for (int i = 0; i < cycles && risc->progress && (risc->shutdown == 0); i++) {
     risc_single_step(risc);
   }
+  return risc->shutdown;
 }
 
 static void risc_single_step(struct RISC *risc) {
@@ -586,7 +589,9 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
     }
     case 32: {
       // halt with value
-      exit(value);
+      // SDL_Quit();
+      //exit(value);
+      risc->shutdown = 1;
       break;
     }
     case 40: {
