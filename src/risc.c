@@ -30,11 +30,16 @@ struct RISC {
   uint32_t PC;
   uint32_t R[16];
   uint32_t H;
-  bool     Z, N, C, V;
+  uint32_t SPC;                 // SPC: Saved PC
+  bool     SZ, SN, SC, SV;      //    : Saved Condition Codes
+  bool     Z, N, C, V, I, E, P; //   I: Interrupt mode
+                                //   E: Interrupts enabled
+                                //   P: Interrupt pending
 
   uint32_t mem_size;
   uint32_t display_start;
 
+  uint32_t shutdown;
   uint32_t progress;
   uint32_t current_tick;
   uint32_t mouse;
@@ -158,22 +163,37 @@ void risc_set_switches(struct RISC *risc, int switches) {
 }
 
 void risc_reset(struct RISC *risc) {
+  risc->shutdown = 0;
   risc->PC = ROMStart/4;
 }
 
-void risc_run(struct RISC *risc, int cycles) {
+void risc_trigger_interrupt(struct RISC *risc) {
+  risc->P = true;
+}
+
+int risc_run(struct RISC *risc, int cycles) {
   risc->progress = 20;
   // The progress value is used to detect that the RISC cpu is busy
   // waiting on the millisecond counter or on the keyboard ready
   // bit. In that case it's better to just pause emulation until the
   // next frame.
-  for (int i = 0; i < cycles && risc->progress; i++) {
+  for (int i = 0; i < cycles && risc->progress && (risc->shutdown == 0); i++) {
     risc_single_step(risc);
   }
+  return risc->shutdown;
 }
 
 static void risc_single_step(struct RISC *risc) {
   uint32_t ir;
+  if (risc->P && risc->E && ! risc->I ) {
+    risc->SPC = risc->PC;
+    risc->SZ = risc->Z;
+    risc->SN = risc->N;
+    risc->SC = risc->C;
+    risc->SV = risc->V;
+    risc->I = true;
+    risc->PC = 1;
+  }
   if (risc->PC < risc->mem_size / 4) {
     ir = risc->RAM[risc->PC];
   } else if (risc->PC >= ROMStart/4 && risc->PC < ROMStart/4 + ROMWords) {
@@ -359,7 +379,23 @@ static void risc_single_step(struct RISC *risc) {
       case 4: t ^= risc->C | risc->Z; break;
       case 5: t ^= risc->N ^ risc->V; break;
       case 6: t ^= (risc->N ^ risc->V) | risc->Z; break;
-      case 7: t ^= true; break;
+      case 7: t ^= true; 
+              if (((ir & ubit) == 0) && ((ir & 0x00000010) == 0x10) && risc->I) { // IRET
+                 risc->PC = risc->SPC;
+                 risc->Z = risc->SZ;
+                 risc->N = risc->SN;
+                 risc->C = risc->SC;
+                 risc->V = risc->SV;
+                 risc->I = false;
+                 risc->P = false;
+                 return;
+              }else{
+                if (((ir & ubit) == 0) && ((ir & 0x00000020) == 0x20)) { // STI and CLI
+                   risc->E = (ir & 1) == 1 ? true: false;
+                   return;
+                }
+              }
+              break;
       default: abort();  // unreachable
     }
     if (t) {
@@ -549,6 +585,13 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
       // Bit 3:   netwerk enable
       // Other bits unused
       risc->spi_selected = value & 3;
+      break;
+    }
+    case 32: {
+      // halt with value
+      // SDL_Quit();
+      //exit(value);
+      risc->shutdown = 1;
       break;
     }
     case 40: {

@@ -17,6 +17,7 @@
 
 #define CPU_HZ 25000000
 #define FPS 60
+#define MSPF 1000/FPS
 
 static uint32_t BLACK = 0x657b83, WHITE = 0xfdf6e3;
 //static uint32_t BLACK = 0x000000, WHITE = 0xFFFFFF;
@@ -62,6 +63,7 @@ struct KeyMapping key_map[] = {
 };
 
 static struct option long_options[] = {
+  { "version",          no_argument,       NULL, 'V' },
   { "zoom",             required_argument, NULL, 'z' },
   { "fullscreen",       no_argument,       NULL, 'f' },
   { "leds",             no_argument,       NULL, 'L' },
@@ -86,6 +88,7 @@ static void usage() {
   puts("Usage: risc [OPTIONS...] DISK-IMAGE\n"
        "\n"
        "Options:\n"
+       "  --version             Print the version of the emulator\n"
        "  --fullscreen          Start the emulator in full screen mode\n"
        "  --zoom REAL           Scale the display in windowed mode\n"
        "  --leds                Log LED state on stdout\n"
@@ -120,13 +123,19 @@ int main (int argc, char *argv[]) {
   bool boot_from_serial = false;
 
   int opt;
-  while ((opt = getopt_long(argc, argv, "z:fLm:s:I:O:S", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "z:fLmV:s:I:O:S", long_options, NULL)) != -1) {
     switch (opt) {
       case 'z': {
         double x = strtod(optarg, 0);
         if (x > 0) {
           zoom = x;
         }
+        break;
+      }
+      case 'V': {
+        fullscreen = true;
+	printf("2021.8.31\n");
+	exit(0);
         break;
       }
       case 'f': {
@@ -334,20 +343,25 @@ int main (int argc, char *argv[]) {
         }
       }
     }
-
+    int sd = 0;
     risc_set_time(risc, frame_start);
-    risc_run(risc, CPU_HZ / FPS);
-
+    for (int i=0; i<MSPF; i++) {
+      sd = risc_run(risc, CPU_HZ / 1000 * MSPF);
+      if(sd == 1){
+	SDL_Quit();
+	exit(0);
+      }
+      uint32_t frame_end = SDL_GetTicks();
+      int delay = frame_start + MSPF - frame_end;
+      if (delay > 0) {
+        SDL_Delay(delay);
+      }
+      risc_trigger_interrupt(risc);
+    }
     update_texture(risc, texture, &risc_rect);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
     SDL_RenderPresent(renderer);
-
-    uint32_t frame_end = SDL_GetTicks();
-    int delay = frame_start + 1000/FPS - frame_end;
-    if (delay > 0) {
-      SDL_Delay(delay);
-    }
   }
   return 0;
 }

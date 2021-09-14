@@ -1,0 +1,41 @@
+CC = cl
+CFLAGS = -D_WIN32 -Zi -W4 -WX -D_CRT_SECURE_NO_WARNINGS -MD \
+		-DSTATIC_BUFSIZ= -DS_IRUSR=0 -DS_IWUSR=0 \
+		-wd4146  -wd4100 -wd4996 -nologo
+
+
+
+
+RISC_CFLAGS = $(CFLAGS)  
+
+RISC_SOURCE = \
+	sdl-main.c \
+	sdl-ps2.c sdl-ps2.h \
+	risc.c risc.h risc-boot.inc \
+	risc-fp.c risc-fp.h \
+	disk.c disk.h \
+	pclink.c pclink.h \
+	raw-serial.c raw-serial.h \
+	sdl-clipboard.c sdl-clipboard.h
+
+all: risc.exe
+
+XOBJS:= $(patsubst %.c,%.obj,$(filter %.c, $(RISC_SOURCE)) )
+
+OBJS:= $(patsubst %.c,%.obj,$(filter %.c, $(RISC_SOURCE)) )
+
+%.obj:%.c
+	$(CC) -c  $(RISC_CFLAGS) $< -Fo$@
+
+risc.exe:$(RISC_SOURCE)
+	$(CC) -c $(RISC_CFLAGS) sdl-main.c
+	dir
+	dir src
+
+foo:
+	link -debug:full $(OBJS) sdl2main.lib  sdl2.lib getopt.lib -SUBSYSTEM:WINDOWS -out:$@ 
+
+clean:
+	-del /s *.obj 
+	-del *.exe
+	-del *.pdb

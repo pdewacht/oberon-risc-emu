@@ -1,4 +1,12 @@
-# Oberon RISC Emulator
+# Oberon RISC Emulator Integrated Oberon Fork
+
+Forked from [Peter De Wachter's RISC emulator in C](https://github.com/pdewacht/oberon-risc-emu) with miscelaneous features added
+
+* CAUTION: More features are not always better features!
+
+Latest risc binary for Ubuntu: [risc-on-Linux](https://github.com/io-core/oberon-risc-emu/releases/download/v2021.9.4/risc-on-Linux) (Requires SDL2 installed via apt)
+
+Latest risc binary for macOS: [risc-on-macOS](https://github.com/io-core/oberon-risc-emu/releases/download/v2021.9.4/risc-on-macOS) (Requires SDL2 installed via homebrew)
 
 This is an emulator for the Oberon RISC machine. For more information,
 [see Niklaus Wirth's site](https://www.inf.ethz.ch/personal/wirth/). For
