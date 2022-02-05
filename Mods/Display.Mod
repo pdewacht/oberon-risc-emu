@@ -191,26 +191,28 @@ MODULE Display;  (*NW 5.11.2013 / 17.1.2019*)
   END ReplPattern;
 
   PROCEDURE InitResolution;
-  VAR magic: INTEGER;
+  VAR tmp, modes, currmode: INTEGER;
   BEGIN
-    Base := 0E7F00H;
-    SYSTEM.GET(Base, magic);
-    IF magic = 53697A65H THEN
-      SYSTEM.GET(Base + 4, Width);
-      SYSTEM.GET(Base + 8, Height);
-      Span := 128;
-    ELSIF magic = 53697A66H THEN
-      SYSTEM.GET(Base + 4, Width);
-      SYSTEM.GET(Base + 8, Height);
-      Span := Width DIV 8
-    ELSIF magic = 53697A67H THEN
-      SYSTEM.GET(Base + 4, Width);
-      SYSTEM.GET(Base + 8, Height);
-      SYSTEM.GET(Base + 12, Base);
-      Span := Width DIV 8
-    ELSE
-      Width := 1024; Height := 768; Span := 128
+    SYSTEM.PUT(-4, 6D566964H); (* 'mVid' *)
+    SYSTEM.GET(-4, modes);
+    SYSTEM.GET(-4, currmode);
+    IF (currmode # 0) & (modes # 1) THEN
+      SYSTEM.GET(currmode, tmp); currmode := tmp;
     END;
+    IF currmode < modes THEN
+      WHILE currmode > 0 DO
+        SYSTEM.GET(-4, tmp); SYSTEM.GET(-4, tmp); SYSTEM.GET(-4, tmp); SYSTEM.GET(-4, tmp); DEC(currmode)
+      END;
+      SYSTEM.GET(-4, Width);
+      SYSTEM.GET(-4, Height);
+      SYSTEM.GET(-4, Span);
+      SYSTEM.GET(-4, Base);
+    ELSE
+      Base := 0E7F00H;
+      Width := 1024;
+      Height := 768;
+      Span := 128
+    END
   END InitResolution;
 
 BEGIN InitResolution;

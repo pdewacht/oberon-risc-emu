@@ -1,7 +1,7 @@
 MODULE Clipboard;
   IMPORT SYSTEM, Texts, Viewers, TextFrames, Oberon;
 
-  CONST control = -24; data = -20;
+  VAR control, data: INTEGER;
 
   PROCEDURE Copy(T: Texts.Text; beg, end: INTEGER);
     VAR R: Texts.Reader;
@@ -21,7 +21,7 @@ MODULE Clipboard;
       beg, end, time: INTEGER;
   BEGIN
     Oberon.GetSelection(T, beg, end, time);
-    IF time >= 0 THEN Copy(T, beg, end) END
+    IF (time >= 0) & (data # 0) THEN Copy(T, beg, end) END
   END CopySelection;
 
   PROCEDURE CopyViewer*;
@@ -29,7 +29,7 @@ MODULE Clipboard;
       F: TextFrames.Frame;
   BEGIN
     V := Oberon.MarkedViewer();
-    IF (V # NIL) & (V.dsc # NIL) & (V.dsc.next IS TextFrames.Frame) THEN
+    IF (V # NIL) & (V.dsc # NIL) & (V.dsc.next IS TextFrames.Frame) & (data # 0) THEN
       F := V.dsc.next(TextFrames.Frame);
       Copy(F.text, 0, F.text.len)
     END
@@ -43,7 +43,7 @@ MODULE Clipboard;
       ch: CHAR;
   BEGIN
     V := Oberon.FocusViewer;
-    IF (V # NIL) & (V.dsc # NIL) & (V.dsc.next IS TextFrames.Frame) THEN
+    IF (V # NIL) & (V.dsc # NIL) & (V.dsc.next IS TextFrames.Frame) & (data # 0) THEN
       SYSTEM.GET(control, len);
       IF len > 0 THEN
         Texts.OpenWriter(W);
@@ -58,4 +58,8 @@ MODULE Clipboard;
     END
   END Paste;
 
+BEGIN
+  SYSTEM.PUT(-4, 76436C70H); (* vClp *)
+  SYSTEM.GET(-4, control);
+  SYSTEM.GET(-4, data)
 END Clipboard.
