@@ -25,6 +25,7 @@
 #define ROMWords     512
 #define IOStart      0xFFFFFFC0
 
+#define HW_ENUM_ID(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 
 struct RISC {
   uint32_t PC;
@@ -51,6 +52,9 @@ struct RISC {
   int fb_width;   // words
   int fb_height;  // lines
   struct Damage damage;
+
+  int32_t hwenum_buf[16];
+  uint32_t hwenum_idx, hwenum_cnt;
 
   uint32_t *RAM;
   uint32_t ROM[ROMWords];
@@ -512,6 +516,13 @@ static uint32_t risc_load_io(struct RISC *risc, uint32_t address) {
       }
       return 0;
     }
+    case 60: {
+      // hardware enumerator
+      if (risc->hwenum_idx < risc->hwenum_cnt) {
+        return risc->hwenum_buf[risc->hwenum_idx++];
+      }
+      return 0;
+    }
     default: {
       return 0;
     }
@@ -562,6 +573,83 @@ static void risc_store_io(struct RISC *risc, uint32_t address, uint32_t value) {
       // Clipboard data
       if (risc->clipboard) {
         risc->clipboard->write_data(risc->clipboard, value);
+      }
+      break;
+    }
+    case 60: {
+      // hardware enumerator
+      risc->hwenum_cnt = 0;
+      risc->hwenum_idx = 0;
+      switch(value) {
+      case 0:
+        risc->hwenum_buf[risc->hwenum_cnt++] = 1; // version
+        risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('m','V','i','d');
+        risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('T','i','m','r');
+        risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('S','w','t','c');
+        risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('S','P','I','f');
+        risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('M','s','K','b');
+        risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('R','s','e','t');
+        if (risc->leds) {
+          risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('L','E','D','s');
+        }
+        if (risc->serial) {
+          risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('S','P','r','t');
+        }
+        if (risc->clipboard) {
+          risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('v','C','l','p');
+        }
+        break;
+      case HW_ENUM_ID('m','V','i','d'):
+        risc->hwenum_buf[risc->hwenum_cnt++] = 1; // number of modes
+        risc->hwenum_buf[risc->hwenum_cnt++] = 0; // no mode switching supported
+        risc->hwenum_buf[risc->hwenum_cnt++] = risc->fb_width * 32; // screen width
+        risc->hwenum_buf[risc->hwenum_cnt++] = risc->fb_height; // screen height
+        risc->hwenum_buf[risc->hwenum_cnt++] = risc->fb_width * 4; // scanline span
+        risc->hwenum_buf[risc->hwenum_cnt++] = risc->display_start; // base address
+        break;
+      case HW_ENUM_ID('T','i','m','r'):
+        risc->hwenum_buf[risc->hwenum_cnt++] = -64; // MMIO address
+        break;
+      case HW_ENUM_ID('S','w','t','c'):
+        risc->hwenum_buf[risc->hwenum_cnt++] = 1; // number of switches
+        risc->hwenum_buf[risc->hwenum_cnt++] = -60; // MMIO address
+        break;
+      case HW_ENUM_ID('L','E','D','s'):
+        if (risc->leds) {
+          risc->hwenum_buf[risc->hwenum_cnt++] = 8; // number of LEDs
+          risc->hwenum_buf[risc->hwenum_cnt++] = -60; // MMIO address
+        }
+        break;
+      case HW_ENUM_ID('S','P','r','t'):
+        if (risc->serial) {
+          risc->hwenum_buf[risc->hwenum_cnt++] = 1;  // number of serial ports
+          risc->hwenum_buf[risc->hwenum_cnt++] = -52; // MMIO status address
+          risc->hwenum_buf[risc->hwenum_cnt++] = -56; // MMIO data address
+        }
+        break;
+      case HW_ENUM_ID('S','P','I','f'):
+        risc->hwenum_buf[risc->hwenum_cnt++] = -44;  // MMIO control address
+        risc->hwenum_buf[risc->hwenum_cnt++] = -48;  // MMIO status address
+        if (risc->spi[1] != NULL) {
+          risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('S','D','C','r'); // SD card
+        }
+        if (risc->spi[2] != NULL) {
+          risc->hwenum_buf[risc->hwenum_cnt++] = HW_ENUM_ID('w','N','e','t'); // wireless network
+        }
+        break;
+      case HW_ENUM_ID('M','s','K','b'):
+        risc->hwenum_buf[risc->hwenum_cnt++] = -40; // MMIO mouse address + keyboard status
+        risc->hwenum_buf[risc->hwenum_cnt++] = -36; // MMIO keyboard address
+        break;
+      case HW_ENUM_ID('v','C','l','p'):
+        if (risc->clipboard) {
+          risc->hwenum_buf[risc->hwenum_cnt++] = -24; // MMIO clipboard control address
+          risc->hwenum_buf[risc->hwenum_cnt++] = -20; // MMIO clipboard data address
+        }
+        break;
+      case HW_ENUM_ID('R','s','e','t'):
+        risc->hwenum_buf[risc->hwenum_cnt++] = ROMStart; // Soft reset vector
+        break;
       }
       break;
     }
